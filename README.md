@@ -10,11 +10,54 @@ Simple and reliable MCP server for Google Forms management. Optimized for HR man
 ✅ Auto-publish forms
 ✅ CSV export for Excel
 ✅ ~640 lines of Python code
+✅ **One-command installation for Cursor IDE**
 
-## Quick Start
+## 🚀 Quick Start (Cursor IDE - Recommended)
+
+**Automated installation for non-technical users:**
+
+### Linux/Mac:
+```bash
+git clone <repository-url>
+cd google-forms-mcp
+./install.sh
+```
+
+### Windows:
+```powershell
+git clone <repository-url>
+cd google-forms-mcp
+.\install.ps1
+```
+
+The installation script will:
+1. ✅ Install `uv` package manager (if needed)
+2. ✅ Install all Python dependencies
+3. ✅ Guide you through Google Cloud OAuth setup
+4. ✅ Generate and save your credentials automatically
+5. ✅ Configure Cursor IDE to use the MCP server
+
+**That's it!** Restart Cursor and start using Google Forms tools in AI chat.
+
+### Test it:
+Ask Cursor: `"List my Google Forms"` or `"Create a feedback form"`
+
+---
+
+## Manual Installation (Advanced Users)
 
 ### 1. Install Dependencies
 
+**Option A: Using uv (recommended for Cursor):**
+```bash
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+```
+
+**Option B: Using venv (traditional approach):**
 ```bash
 # Create virtual environment
 python3 -m venv venv
@@ -57,8 +100,14 @@ GOOGLE_CLIENT_SECRET=GOCSPX-xxxx
 GOOGLE_REFRESH_TOKEN=1//0gxxxx
 ```
 
-### 4. Run Server
+### 4. Run Server (for testing)
 
+**Using uv:**
+```bash
+uv run python main.py
+```
+
+**Using venv:**
 ```bash
 # Activate virtual environment first
 source venv/bin/activate
@@ -67,22 +116,79 @@ source venv/bin/activate
 python main.py
 ```
 
-### 5. Configure Claude Code
+### 5. Configure Your IDE
 
-Add to `~/.config/claude/config.json`:
+#### For Cursor IDE (Recommended):
 
+**Location:**
+- Linux/Mac: `~/.cursor/mcp.json`
+- Windows: `%APPDATA%\Cursor\User\globalStorage\mcp.json`
+
+**Configuration (using uv):**
 ```json
 {
   "mcpServers": {
     "google-forms": {
-      "command": "/home/maksdizzy/repos/6-empathy-consulting/google-forms-mcp/venv/bin/python",
-      "args": ["/home/maksdizzy/repos/6-empathy-consulting/google-forms-mcp/main.py"]
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/google-forms-mcp",
+        "run",
+        "python",
+        "main.py"
+      ]
     }
   }
 }
 ```
 
-**Important**: Replace the paths above with your actual project location. Use the virtual environment's Python interpreter (`venv/bin/python`).
+**Configuration (using venv):**
+```json
+{
+  "mcpServers": {
+    "google-forms": {
+      "command": "/absolute/path/to/google-forms-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/google-forms-mcp/main.py"]
+    }
+  }
+}
+```
+
+#### For Claude Code:
+
+**Location:** `~/.config/claude/config.json`
+
+**Configuration (using uv):**
+```json
+{
+  "mcpServers": {
+    "google-forms": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/google-forms-mcp",
+        "run",
+        "python",
+        "main.py"
+      ]
+    }
+  }
+}
+```
+
+**Configuration (using venv):**
+```json
+{
+  "mcpServers": {
+    "google-forms": {
+      "command": "/absolute/path/to/google-forms-mcp/venv/bin/python",
+      "args": ["/absolute/path/to/google-forms-mcp/main.py"]
+    }
+  }
+}
+```
+
+**Important**: Replace `/absolute/path/to/google-forms-mcp` with your actual project location.
 
 ## Available Tools
 

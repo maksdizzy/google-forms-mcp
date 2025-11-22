@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "google-forms": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/google-forms-mcp",
+        "run",
+        "python",
+        "main.py"
+      ]
+    }
+  }
+}
