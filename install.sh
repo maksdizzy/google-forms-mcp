@@ -49,34 +49,102 @@ echo ""
 # Step 3: Google Cloud OAuth Setup
 echo -e "${YELLOW}Step 3/5: Setting up Google Cloud OAuth credentials${NC}"
 echo ""
-echo "You need to create OAuth credentials in Google Cloud Console."
-echo "This will allow the MCP server to access your Google Forms."
-echo ""
-echo -e "${BLUE}Please follow these steps:${NC}"
-echo ""
-echo "1. Open: https://console.cloud.google.com"
-echo "2. Create a new project (or select existing one)"
-echo "3. Enable these APIs:"
-echo "   - Google Forms API"
-echo "   - Google Drive API"
-echo "4. Go to 'Credentials' → 'Create Credentials' → 'OAuth client ID'"
-echo "5. Application type: 'Desktop app'"
-echo "6. Name it: 'Google Forms MCP'"
-echo "7. Click 'Create'"
-echo ""
-echo -e "${GREEN}When ready, press Enter to continue...${NC}"
-read -r
 
-# Ask for client ID and secret
+# Check if .env file already exists
+EXISTING_CLIENT_ID=""
+EXISTING_CLIENT_SECRET=""
+EXISTING_REFRESH_TOKEN=""
+
+if [ -f ".env" ]; then
+    echo -e "${BLUE}Found existing .env file. Checking for existing credentials...${NC}"
+
+    # Read existing values
+    if grep -q "GOOGLE_CLIENT_ID=" .env; then
+        EXISTING_CLIENT_ID=$(grep "GOOGLE_CLIENT_ID=" .env | cut -d'=' -f2)
+        if [ -n "$EXISTING_CLIENT_ID" ]; then
+            echo -e "${GREEN}✓ Found existing Client ID${NC}"
+        fi
+    fi
+
+    if grep -q "GOOGLE_CLIENT_SECRET=" .env; then
+        EXISTING_CLIENT_SECRET=$(grep "GOOGLE_CLIENT_SECRET=" .env | cut -d'=' -f2)
+        if [ -n "$EXISTING_CLIENT_SECRET" ]; then
+            echo -e "${GREEN}✓ Found existing Client Secret${NC}"
+        fi
+    fi
+
+    if grep -q "GOOGLE_REFRESH_TOKEN=" .env; then
+        EXISTING_REFRESH_TOKEN=$(grep "GOOGLE_REFRESH_TOKEN=" .env | cut -d'=' -f2)
+        if [ -n "$EXISTING_REFRESH_TOKEN" ]; then
+            echo -e "${GREEN}✓ Found existing Refresh Token${NC}"
+        fi
+    fi
+    echo ""
+fi
+
+# Determine what we need to ask for
+NEED_CLIENT_ID=false
+NEED_CLIENT_SECRET=false
+NEED_REFRESH_TOKEN=false
+
+if [ -z "$EXISTING_CLIENT_ID" ]; then
+    NEED_CLIENT_ID=true
+fi
+
+if [ -z "$EXISTING_CLIENT_SECRET" ]; then
+    NEED_CLIENT_SECRET=true
+fi
+
+if [ -z "$EXISTING_REFRESH_TOKEN" ]; then
+    NEED_REFRESH_TOKEN=true
+fi
+
+# If we need any OAuth credentials, show instructions
+if [ "$NEED_CLIENT_ID" = true ] || [ "$NEED_CLIENT_SECRET" = true ]; then
+    echo "You need to create OAuth credentials in Google Cloud Console."
+    echo "This will allow the MCP server to access your Google Forms."
+    echo ""
+    echo -e "${BLUE}Please follow these steps:${NC}"
+    echo ""
+    echo "1. Open: https://console.cloud.google.com"
+    echo "2. Create a new project (or select existing one)"
+    echo "3. Enable these APIs:"
+    echo "   - Google Forms API"
+    echo "   - Google Drive API"
+    echo "4. Go to 'Credentials' → 'Create Credentials' → 'OAuth client ID'"
+    echo "5. Application type: 'Desktop app'"
+    echo "6. Name it: 'Google Forms MCP'"
+    echo "7. Click 'Create'"
+    echo ""
+    echo -e "${GREEN}When ready, press Enter to continue...${NC}"
+    read -r
+    echo ""
+fi
+
+# Ask for client ID if needed
+if [ "$NEED_CLIENT_ID" = true ]; then
+    echo -e "${YELLOW}Enter your OAuth Client ID:${NC}"
+    read -r CLIENT_ID
+else
+    CLIENT_ID="$EXISTING_CLIENT_ID"
+    echo -e "${BLUE}Using existing Client ID${NC}"
+fi
+
+# Ask for client secret if needed
+if [ "$NEED_CLIENT_SECRET" = true ]; then
+    echo -e "${YELLOW}Enter your OAuth Client Secret:${NC}"
+    read -r CLIENT_SECRET
+else
+    CLIENT_SECRET="$EXISTING_CLIENT_SECRET"
+    echo -e "${BLUE}Using existing Client Secret${NC}"
+fi
+
 echo ""
-echo -e "${YELLOW}Enter your OAuth Client ID:${NC}"
-read -r CLIENT_ID
 
-echo -e "${YELLOW}Enter your OAuth Client Secret:${NC}"
-read -r CLIENT_SECRET
-
-# Create client_secrets.json for token generation
-cat > client_secrets.json <<EOF
+# Step 4: Generate refresh token (if needed)
+if [ "$NEED_REFRESH_TOKEN" = true ]; then
+    # Create client_secrets.json for token generation
+    cat > client_secrets.json <<EOF
 {
   "installed": {
     "client_id": "$CLIENT_ID",
@@ -88,50 +156,52 @@ cat > client_secrets.json <<EOF
 }
 EOF
 
-echo -e "${GREEN}✓ OAuth credentials saved${NC}"
-echo ""
+    echo -e "${YELLOW}Step 4/5: Generating OAuth refresh token...${NC}"
+    echo ""
+    echo "This will open your browser to authorize the application."
+    echo "Please sign in with your Google account and grant access."
+    echo ""
+    echo -e "${GREEN}Press Enter to open browser...${NC}"
+    read -r
 
-# Step 4: Generate refresh token
-echo -e "${YELLOW}Step 4/5: Generating OAuth refresh token...${NC}"
-echo ""
-echo "This will open your browser to authorize the application."
-echo "Please sign in with your Google account and grant access."
-echo ""
-echo -e "${GREEN}Press Enter to open browser...${NC}"
-read -r
+    # Run the token generation script and capture output
+    TOKEN_OUTPUT=$(uv run python get_token.py 2>&1) || {
+        echo -e "${RED}Failed to generate token. Please check the error above.${NC}"
+        exit 1
+    }
 
-# Run the token generation script and capture output
-TOKEN_OUTPUT=$(uv run python get_token.py 2>&1) || {
-    echo -e "${RED}Failed to generate token. Please check the error above.${NC}"
-    exit 1
-}
+    # Extract refresh token from output
+    REFRESH_TOKEN=$(echo "$TOKEN_OUTPUT" | grep "GOOGLE_REFRESH_TOKEN=" | cut -d'=' -f2)
 
-# Extract refresh token from output
-REFRESH_TOKEN=$(echo "$TOKEN_OUTPUT" | grep "GOOGLE_REFRESH_TOKEN=" | cut -d'=' -f2)
+    if [ -z "$REFRESH_TOKEN" ]; then
+        echo -e "${RED}Failed to extract refresh token. Please run 'uv run python get_token.py' manually.${NC}"
+        exit 1
+    fi
 
-if [ -z "$REFRESH_TOKEN" ]; then
-    echo -e "${RED}Failed to extract refresh token. Please run 'uv run python get_token.py' manually.${NC}"
-    exit 1
+    echo -e "${GREEN}✓ Token generated successfully${NC}"
+    echo ""
+
+    # Clean up client_secrets.json
+    rm -f client_secrets.json
+else
+    echo -e "${YELLOW}Step 4/5: Using existing refresh token${NC}"
+    REFRESH_TOKEN="$EXISTING_REFRESH_TOKEN"
+    echo -e "${GREEN}✓ All credentials already configured${NC}"
+    echo ""
 fi
 
-echo -e "${GREEN}✓ Token generated successfully${NC}"
-echo ""
-
-# Create .env file
+# Create or update .env file
 cat > .env <<EOF
 # Google OAuth Credentials
-# Generated by install.sh on $(date)
+# Updated by install.sh on $(date)
 
 GOOGLE_CLIENT_ID=$CLIENT_ID
 GOOGLE_CLIENT_SECRET=$CLIENT_SECRET
 GOOGLE_REFRESH_TOKEN=$REFRESH_TOKEN
 EOF
 
-echo -e "${GREEN}✓ .env file created${NC}"
+echo -e "${GREEN}✓ .env file updated${NC}"
 echo ""
-
-# Clean up client_secrets.json (optional, for security)
-rm -f client_secrets.json
 
 # Step 5: Configure Cursor
 echo -e "${YELLOW}Step 5/5: Configuring Cursor IDE...${NC}"

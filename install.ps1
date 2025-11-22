@@ -53,34 +53,92 @@ Write-Output ""
 # Step 3: Google Cloud OAuth Setup
 Write-ColorOutput Yellow "Step 3/5: Setting up Google Cloud OAuth credentials"
 Write-Output ""
-Write-Output "You need to create OAuth credentials in Google Cloud Console."
-Write-Output "This will allow the MCP server to access your Google Forms."
-Write-Output ""
-Write-ColorOutput Blue "Please follow these steps:"
-Write-Output ""
-Write-Output "1. Open: https://console.cloud.google.com"
-Write-Output "2. Create a new project (or select existing one)"
-Write-Output "3. Enable these APIs:"
-Write-Output "   - Google Forms API"
-Write-Output "   - Google Drive API"
-Write-Output "4. Go to 'Credentials' → 'Create Credentials' → 'OAuth client ID'"
-Write-Output "5. Application type: 'Desktop app'"
-Write-Output "6. Name it: 'Google Forms MCP'"
-Write-Output "7. Click 'Create'"
-Write-Output ""
-Write-ColorOutput Green "When ready, press Enter to continue..."
-$null = Read-Host
 
-# Ask for client ID and secret
+# Check if .env file already exists
+$ExistingClientId = ""
+$ExistingClientSecret = ""
+$ExistingRefreshToken = ""
+
+if (Test-Path ".env") {
+    Write-ColorOutput Blue "Found existing .env file. Checking for existing credentials..."
+
+    # Read existing values
+    $envContent = Get-Content ".env" -Raw
+
+    if ($envContent -match "GOOGLE_CLIENT_ID=(.+)") {
+        $ExistingClientId = $matches[1].Trim()
+        if ($ExistingClientId) {
+            Write-ColorOutput Green "✓ Found existing Client ID"
+        }
+    }
+
+    if ($envContent -match "GOOGLE_CLIENT_SECRET=(.+)") {
+        $ExistingClientSecret = $matches[1].Trim()
+        if ($ExistingClientSecret) {
+            Write-ColorOutput Green "✓ Found existing Client Secret"
+        }
+    }
+
+    if ($envContent -match "GOOGLE_REFRESH_TOKEN=(.+)") {
+        $ExistingRefreshToken = $matches[1].Trim()
+        if ($ExistingRefreshToken) {
+            Write-ColorOutput Green "✓ Found existing Refresh Token"
+        }
+    }
+    Write-Output ""
+}
+
+# Determine what we need to ask for
+$NeedClientId = [string]::IsNullOrWhiteSpace($ExistingClientId)
+$NeedClientSecret = [string]::IsNullOrWhiteSpace($ExistingClientSecret)
+$NeedRefreshToken = [string]::IsNullOrWhiteSpace($ExistingRefreshToken)
+
+# If we need any OAuth credentials, show instructions
+if ($NeedClientId -or $NeedClientSecret) {
+    Write-Output "You need to create OAuth credentials in Google Cloud Console."
+    Write-Output "This will allow the MCP server to access your Google Forms."
+    Write-Output ""
+    Write-ColorOutput Blue "Please follow these steps:"
+    Write-Output ""
+    Write-Output "1. Open: https://console.cloud.google.com"
+    Write-Output "2. Create a new project (or select existing one)"
+    Write-Output "3. Enable these APIs:"
+    Write-Output "   - Google Forms API"
+    Write-Output "   - Google Drive API"
+    Write-Output "4. Go to 'Credentials' → 'Create Credentials' → 'OAuth client ID'"
+    Write-Output "5. Application type: 'Desktop app'"
+    Write-Output "6. Name it: 'Google Forms MCP'"
+    Write-Output "7. Click 'Create'"
+    Write-Output ""
+    Write-ColorOutput Green "When ready, press Enter to continue..."
+    $null = Read-Host
+    Write-Output ""
+}
+
+# Ask for client ID if needed
+if ($NeedClientId) {
+    Write-ColorOutput Yellow "Enter your OAuth Client ID:"
+    $ClientId = Read-Host
+} else {
+    $ClientId = $ExistingClientId
+    Write-ColorOutput Blue "Using existing Client ID"
+}
+
+# Ask for client secret if needed
+if ($NeedClientSecret) {
+    Write-ColorOutput Yellow "Enter your OAuth Client Secret:"
+    $ClientSecret = Read-Host
+} else {
+    $ClientSecret = $ExistingClientSecret
+    Write-ColorOutput Blue "Using existing Client Secret"
+}
+
 Write-Output ""
-Write-ColorOutput Yellow "Enter your OAuth Client ID:"
-$ClientId = Read-Host
 
-Write-ColorOutput Yellow "Enter your OAuth Client Secret:"
-$ClientSecret = Read-Host
-
-# Create client_secrets.json for token generation
-$clientSecretsContent = @"
+# Step 4: Generate refresh token (if needed)
+if ($NeedRefreshToken) {
+    # Create client_secrets.json for token generation
+    $clientSecretsContent = @"
 {
   "installed": {
     "client_id": "$ClientId",
@@ -92,43 +150,48 @@ $clientSecretsContent = @"
 }
 "@
 
-Set-Content -Path "client_secrets.json" -Value $clientSecretsContent
+    Set-Content -Path "client_secrets.json" -Value $clientSecretsContent
 
-Write-ColorOutput Green "✓ OAuth credentials saved"
-Write-Output ""
+    Write-ColorOutput Yellow "Step 4/5: Generating OAuth refresh token..."
+    Write-Output ""
+    Write-Output "This will open your browser to authorize the application."
+    Write-Output "Please sign in with your Google account and grant access."
+    Write-Output ""
+    Write-ColorOutput Green "Press Enter to open browser..."
+    $null = Read-Host
 
-# Step 4: Generate refresh token
-Write-ColorOutput Yellow "Step 4/5: Generating OAuth refresh token..."
-Write-Output ""
-Write-Output "This will open your browser to authorize the application."
-Write-Output "Please sign in with your Google account and grant access."
-Write-Output ""
-Write-ColorOutput Green "Press Enter to open browser..."
-$null = Read-Host
+    # Run the token generation script and capture output
+    try {
+        $TokenOutput = uv run python get_token.py 2>&1 | Out-String
+    } catch {
+        Write-ColorOutput Red "Failed to generate token. Please check the error above."
+        exit 1
+    }
 
-# Run the token generation script and capture output
-try {
-    $TokenOutput = uv run python get_token.py 2>&1 | Out-String
-} catch {
-    Write-ColorOutput Red "Failed to generate token. Please check the error above."
-    exit 1
+    # Extract refresh token from output
+    $RefreshToken = ($TokenOutput -split "`n" | Where-Object { $_ -match "GOOGLE_REFRESH_TOKEN=" }) -replace "GOOGLE_REFRESH_TOKEN=", ""
+
+    if (-not $RefreshToken) {
+        Write-ColorOutput Red "Failed to extract refresh token. Please run 'uv run python get_token.py' manually."
+        exit 1
+    }
+
+    Write-ColorOutput Green "✓ Token generated successfully"
+    Write-Output ""
+
+    # Clean up client_secrets.json
+    Remove-Item -Path "client_secrets.json" -ErrorAction SilentlyContinue
+} else {
+    Write-ColorOutput Yellow "Step 4/5: Using existing refresh token"
+    $RefreshToken = $ExistingRefreshToken
+    Write-ColorOutput Green "✓ All credentials already configured"
+    Write-Output ""
 }
 
-# Extract refresh token from output
-$RefreshToken = ($TokenOutput -split "`n" | Where-Object { $_ -match "GOOGLE_REFRESH_TOKEN=" }) -replace "GOOGLE_REFRESH_TOKEN=", ""
-
-if (-not $RefreshToken) {
-    Write-ColorOutput Red "Failed to extract refresh token. Please run 'uv run python get_token.py' manually."
-    exit 1
-}
-
-Write-ColorOutput Green "✓ Token generated successfully"
-Write-Output ""
-
-# Create .env file
+# Create or update .env file
 $envContent = @"
 # Google OAuth Credentials
-# Generated by install.ps1 on $(Get-Date)
+# Updated by install.ps1 on $(Get-Date)
 
 GOOGLE_CLIENT_ID=$ClientId
 GOOGLE_CLIENT_SECRET=$ClientSecret
@@ -137,11 +200,8 @@ GOOGLE_REFRESH_TOKEN=$RefreshToken
 
 Set-Content -Path ".env" -Value $envContent
 
-Write-ColorOutput Green "✓ .env file created"
+Write-ColorOutput Green "✓ .env file updated"
 Write-Output ""
-
-# Clean up client_secrets.json (optional, for security)
-Remove-Item -Path "client_secrets.json" -ErrorAction SilentlyContinue
 
 # Step 5: Configure Cursor
 Write-ColorOutput Yellow "Step 5/5: Configuring Cursor IDE..."
