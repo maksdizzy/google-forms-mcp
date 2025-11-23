@@ -4,7 +4,7 @@
       "command": "uv",
       "args": [
         "--directory",
-        "/ABSOLUTE/PATH/TO/google-forms-mcp",
+        "scripts/google-forms-mcp",
         "run",
         "python",
         "main.py"

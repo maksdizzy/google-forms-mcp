@@ -207,49 +207,76 @@ Write-Output ""
 Write-ColorOutput Yellow "Step 5/5: Configuring Cursor IDE..."
 Write-Output ""
 
-# Cursor config location on Windows
-$CursorConfigDir = "$env:APPDATA\Cursor\User\globalStorage"
+# Project-level configuration path
+$CursorConfigDir = "$ScriptDir\..\..\\.cursor"
 $McpConfigFile = "$CursorConfigDir\mcp.json"
 
-# Create directory if it doesn't exist
-New-Item -ItemType Directory -Force -Path $CursorConfigDir | Out-Null
+# Ask for confirmation
+Write-ColorOutput Yellow "Install MCP configuration to .cursor/mcp.json? (Y/n):"
+$InstallConfig = Read-Host
 
-# Prepare the configuration
-$mcpConfig = @"
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "$ScriptDir",
-        "run",
-        "python",
-        "main.py"
-      ]
-    }
-  }
+# Default to Y if empty
+if ([string]::IsNullOrWhiteSpace($InstallConfig)) {
+    $InstallConfig = "Y"
 }
-"@
 
-# Check if mcp.json exists
-if (Test-Path $McpConfigFile) {
-    Write-ColorOutput Yellow "Cursor MCP configuration already exists."
-    Write-Output "Your current config: $McpConfigFile"
-    Write-Output ""
-    Write-Output "Add this to your mcpServers section:"
-    Write-Output ""
-    Write-Output $mcpConfig
-    Write-Output ""
-    Write-ColorOutput Yellow "Would you like to open the config file for editing? (y/n)"
-    $openConfig = Read-Host
-    if ($openConfig -eq "y" -or $openConfig -eq "Y") {
-        notepad $McpConfigFile
-    }
+# Skip if user declined
+if ($InstallConfig -eq "n" -or $InstallConfig -eq "N") {
+    Write-ColorOutput Yellow "Skipped MCP configuration installation."
+    Write-Output "You can manually add the configuration later."
 } else {
-    # Create new mcp.json
-    Set-Content -Path $McpConfigFile -Value $mcpConfig
-    Write-ColorOutput Green "✓ Cursor MCP configuration created at: $McpConfigFile"
+    # Create directory if it doesn't exist
+    New-Item -ItemType Directory -Force -Path $CursorConfigDir | Out-Null
+
+    # Check if mcp.json exists
+    if (Test-Path $McpConfigFile) {
+        Write-ColorOutput Blue "Merging with existing configuration..."
+        
+        # Read existing config
+        $existingConfig = Get-Content $McpConfigFile -Raw | ConvertFrom-Json
+        
+        # Ensure mcpServers exists
+        if (-not $existingConfig.mcpServers) {
+            $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{}
+        }
+        
+        # Add or update google-forms server
+        $googleFormsServer = @{
+            command = "uv"
+            args = @(
+                "--directory",
+                "scripts/google-forms-mcp",
+                "run",
+                "python",
+                "main.py"
+            )
+        }
+        
+        $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "google-forms" -Value $googleFormsServer -Force
+        
+        # Write back
+        $existingConfig | ConvertTo-Json -Depth 10 | Set-Content $McpConfigFile
+        Write-ColorOutput Green "✓ MCP configuration updated: $McpConfigFile"
+    } else {
+        # Create new mcp.json
+        $newConfig = @{
+            mcpServers = @{
+                "google-forms" = @{
+                    command = "uv"
+                    args = @(
+                        "--directory",
+                        "scripts/google-forms-mcp",
+                        "run",
+                        "python",
+                        "main.py"
+                    )
+                }
+            }
+        }
+        
+        $newConfig | ConvertTo-Json -Depth 10 | Set-Content $McpConfigFile
+        Write-ColorOutput Green "✓ MCP configuration created: $McpConfigFile"
+    }
 }
 
 Write-Output ""

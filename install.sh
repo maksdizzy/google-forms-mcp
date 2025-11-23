@@ -207,54 +207,85 @@ echo ""
 echo -e "${YELLOW}Step 5/5: Configuring Cursor IDE...${NC}"
 echo ""
 
-# Determine the path to uv python
-UV_PYTHON_PATH="$SCRIPT_DIR/.venv/bin/python"
-
-# Create Cursor MCP configuration
-CURSOR_CONFIG_DIR="$HOME/.cursor"
+# Project-level configuration path
+CURSOR_CONFIG_DIR="$SCRIPT_DIR/../../.cursor"
 MCP_CONFIG_FILE="$CURSOR_CONFIG_DIR/mcp.json"
 
-mkdir -p "$CURSOR_CONFIG_DIR"
+# Ask for confirmation
+echo -e "${YELLOW}Install MCP configuration to .cursor/mcp.json? (Y/n):${NC}"
+read -r INSTALL_CONFIG
 
-# Check if mcp.json exists
-if [ -f "$MCP_CONFIG_FILE" ]; then
-    echo -e "${YELLOW}Cursor MCP configuration already exists.${NC}"
-    echo "Your current config: $MCP_CONFIG_FILE"
-    echo ""
-    echo "Add this to your mcpServers section:"
-    echo ""
-    cat <<EOF
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "$SCRIPT_DIR",
-        "run",
-        "python",
-        "main.py"
-      ]
-    }
-  }
-}
-EOF
-    echo ""
-    echo -e "${YELLOW}Would you like to open the config file for editing? (y/n)${NC}"
-    read -r OPEN_CONFIG
-    if [ "$OPEN_CONFIG" = "y" ] || [ "$OPEN_CONFIG" = "Y" ]; then
-        ${EDITOR:-nano} "$MCP_CONFIG_FILE"
-    fi
+# Default to Y if empty
+if [ -z "$INSTALL_CONFIG" ]; then
+    INSTALL_CONFIG="Y"
+fi
+
+# Skip if user declined
+if [ "$INSTALL_CONFIG" = "n" ] || [ "$INSTALL_CONFIG" = "N" ]; then
+    echo -e "${YELLOW}Skipped MCP configuration installation.${NC}"
+    echo "You can manually add the configuration later."
 else
-    # Create new mcp.json
-    cat > "$MCP_CONFIG_FILE" <<EOF
+    # Create directory if it doesn't exist
+    mkdir -p "$CURSOR_CONFIG_DIR"
+
+    # Check if mcp.json exists
+    if [ -f "$MCP_CONFIG_FILE" ]; then
+        echo -e "${BLUE}Merging with existing configuration...${NC}"
+        
+        # Create a temporary file with the new server config
+        TEMP_CONFIG=$(mktemp)
+        cat > "$TEMP_CONFIG" <<'EOF'
+{
+  "command": "uv",
+  "args": [
+    "--directory",
+    "scripts/google-forms-mcp",
+    "run",
+    "python",
+    "main.py"
+  ]
+}
+EOF
+        
+        # Use Python to merge JSON (available since we already have uv)
+        uv run python -c "
+import json
+import sys
+
+# Read existing config
+with open('$MCP_CONFIG_FILE', 'r') as f:
+    config = json.load(f)
+
+# Read new server config
+with open('$TEMP_CONFIG', 'r') as f:
+    new_server = json.load(f)
+
+# Ensure mcpServers exists
+if 'mcpServers' not in config:
+    config['mcpServers'] = {}
+
+# Add or update google-forms server
+config['mcpServers']['google-forms'] = new_server
+
+# Write back
+with open('$MCP_CONFIG_FILE', 'w') as f:
+    json.dump(config, f, indent=2)
+
+print('✓ Configuration merged successfully')
+" && echo -e "${GREEN}✓ MCP configuration updated: $MCP_CONFIG_FILE${NC}"
+        
+        # Clean up temp file
+        rm -f "$TEMP_CONFIG"
+    else
+        # Create new mcp.json
+        cat > "$MCP_CONFIG_FILE" <<'EOF'
 {
   "mcpServers": {
     "google-forms": {
       "command": "uv",
       "args": [
         "--directory",
-        "$SCRIPT_DIR",
+        "scripts/google-forms-mcp",
         "run",
         "python",
         "main.py"
@@ -263,7 +294,8 @@ else
   }
 }
 EOF
-    echo -e "${GREEN}✓ Cursor MCP configuration created at: $MCP_CONFIG_FILE${NC}"
+        echo -e "${GREEN}✓ MCP configuration created: $MCP_CONFIG_FILE${NC}"
+    fi
 fi
 
 echo ""
