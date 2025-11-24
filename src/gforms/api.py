@@ -28,6 +28,20 @@ class FormsAPI:
         self.service = build('forms', 'v1', credentials=self.creds)
         self.drive_service = build('drive', 'v3', credentials=self.creds)
 
+    def _sync_drive_name(self, form_id: str, title: str) -> None:
+        """Sync Drive document name with form title.
+
+        Google Forms API sets info.title but NOT the Drive document name.
+        This method ensures both are synchronized.
+        """
+        try:
+            self.drive_service.files().update(
+                fileId=form_id,
+                body={'name': title}
+            ).execute()
+        except HttpError as e:
+            logger.warning(f"Failed to sync Drive name: {e}")
+
     def create_form(self, title: str, description: str = "") -> Dict[str, Any]:
         """Create and publish a new form.
 
@@ -80,6 +94,9 @@ class FormsAPI:
 
                 update = {"requests": requests}
                 self.service.forms().batchUpdate(formId=form_id, body=update).execute()
+
+            # Sync Drive document name with form title
+            self._sync_drive_name(form_id, title)
 
             return {
                 "formId": form_id,
@@ -203,6 +220,10 @@ class FormsAPI:
 
             body = {"requests": requests}
             self.service.forms().batchUpdate(formId=form_id, body=body).execute()
+
+            # Sync Drive document name when title changes
+            if title is not None:
+                self._sync_drive_name(form_id, title)
 
             return self.get_form(form_id)
 
