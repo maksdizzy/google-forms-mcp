@@ -1,26 +1,54 @@
 [project]
-name = "google-forms-mcp"
-version = "0.1.0"
-description = "MCP server for Google Forms management"
+name = "google-forms-cli"
+version = "0.2.0"
+description = "CLI tool for managing Google Forms - create, edit, export forms and responses"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["google-forms", "cli", "forms", "survey", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Utilities",
+]
+
 dependencies = [
-    "mcp>=0.9.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
     "google-auth>=2.23.0",
     "google-auth-oauthlib>=1.1.0",
     "google-api-python-client>=2.108.0",
     "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.scripts]
-google-forms-mcp = "main:main"
+gforms = "gforms.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/maksdizzy/google-forms-cli"
+Documentation = "https://github.com/maksdizzy/google-forms-cli#readme"
+Issues = "https://github.com/maksdizzy/google-forms-cli/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = []
-
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["src/gforms"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]

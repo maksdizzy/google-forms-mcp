@@ -1,379 +1,220 @@
-# Google Forms MCP Server
+# Google Forms CLI
 
-Simple and reliable MCP server for Google Forms management. Optimized for HR managers creating feedback forms.
+Command-line tool for managing Google Forms - create forms, add questions, export responses.
 
 ## Features
 
-✅ 15 essential tools (forms, questions, responses)
-✅ All 12 Google Forms question types
-✅ OAuth via .env (simple setup)
-✅ Auto-publish forms
-✅ CSV export for Excel
-✅ ~640 lines of Python code
-✅ **One-command installation for Cursor IDE**
+- **Full form management** - Create, update, delete, duplicate forms
+- **All question types** - 12 Google Forms question types supported
+- **Response export** - Export responses to CSV
+- **YAML templates** - Create complex forms from simple YAML files
+- **Interactive OAuth wizard** - Easy setup for non-technical users
+- **Cursor Skill** - Works as an AI agent skill in Cursor IDE
 
-## 🚀 Quick Start (Cursor IDE - Recommended)
+## Quick Start
 
-**Automated installation for non-technical users:**
+### 1. Install
 
-### Linux/Mac:
 ```bash
-git clone <repository-url>
-cd google-forms-mcp
-./install.sh
-```
+# Clone the repository
+git clone https://github.com/maksdizzy/google-forms-cli
+cd google-forms-cli
 
-### Windows:
-```powershell
-git clone <repository-url>
-cd google-forms-mcp
-.\install.ps1
-```
-
-The installation script will:
-1. ✅ Install `uv` package manager (if needed)
-2. ✅ Install all Python dependencies
-3. ✅ Guide you through Google Cloud OAuth setup
-4. ✅ Generate and save your credentials automatically
-5. ✅ Configure Cursor IDE to use the MCP server
-
-**That's it!** Restart Cursor and start using Google Forms tools in AI chat.
-
-### Test it:
-Ask Cursor: `"List my Google Forms"` or `"Create a feedback form"`
-
----
-
-## Manual Installation (Advanced Users)
-
-### 1. Install Dependencies
-
-**Option A: Using uv (recommended for Cursor):**
-```bash
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install dependencies
+# Install with uv
 uv sync
 ```
 
-**Option B: Using venv (traditional approach):**
+### 2. Setup OAuth
+
 ```bash
-# Create virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Run interactive setup wizard
+uv run gforms auth setup
 ```
 
-### 2. Get OAuth Credentials
+The wizard guides you through:
+1. Creating OAuth credentials in Google Cloud Console
+2. Getting a refresh token
+3. Saving credentials to `.env`
 
-**Create OAuth Client:**
-1. Go to https://console.cloud.google.com
-2. Create project → Enable Forms API & Drive API
-3. Create OAuth client ID (Desktop app)
-4. Save client_id and client_secret
+### 3. Use
 
-**Get Refresh Token (Option A - Easiest):**
-1. Go to https://developers.google.com/oauthplayground/
-2. Settings → Use your own OAuth credentials
-3. Select scopes:
+```bash
+# List your forms
+uv run gforms list
+
+# Create a new form
+uv run gforms create "My Survey"
+
+# Add a question
+uv run gforms add-question FORM_ID --type MULTIPLE_CHOICE --title "Rate us" --options "1,2,3,4,5"
+
+# Export responses
+uv run gforms export FORM_ID --output responses.csv
+```
+
+## Commands
+
+### Form Management
+
+| Command | Description |
+|---------|-------------|
+| `gforms list` | List all forms |
+| `gforms create "Title"` | Create new form |
+| `gforms get FORM_ID` | Get form details |
+| `gforms update FORM_ID` | Update form |
+| `gforms delete FORM_ID` | Delete form |
+| `gforms duplicate FORM_ID` | Copy form |
+| `gforms link FORM_ID` | Get share links |
+
+### Questions
+
+| Command | Description |
+|---------|-------------|
+| `gforms add-question` | Add question |
+| `gforms delete-question` | Remove question |
+| `gforms move-question` | Reorder question |
+| `gforms add-section` | Add section break |
+
+### Responses
+
+| Command | Description |
+|---------|-------------|
+| `gforms responses FORM_ID` | List responses |
+| `gforms export FORM_ID` | Export to CSV |
+
+### Templates
+
+| Command | Description |
+|---------|-------------|
+| `gforms apply template.yaml` | Create from template |
+| `gforms export-template FORM_ID` | Export to YAML |
+
+## Question Types
+
+```bash
+# Text questions
+--type SHORT_ANSWER
+--type PARAGRAPH
+
+# Choice questions (use --options)
+--type MULTIPLE_CHOICE --options "A,B,C"
+--type CHECKBOXES --options "X,Y,Z"
+--type DROPDOWN --options "1,2,3"
+
+# Scale questions
+--type LINEAR_SCALE --low 1 --high 5
+--type RATING --high 5
+
+# Other
+--type DATE
+--type TIME
+```
+
+## YAML Templates
+
+Create forms from YAML files:
+
+```yaml
+form:
+  title: "Customer Feedback"
+  description: "Share your experience"
+
+questions:
+  - type: SHORT_ANSWER
+    title: "Your name"
+    required: true
+
+  - type: MULTIPLE_CHOICE
+    title: "Satisfaction"
+    options: [Excellent, Good, Fair, Poor]
+    required: true
+
+  - type: PARAGRAPH
+    title: "Comments"
+```
+
+Apply with:
+```bash
+uv run gforms apply feedback.yaml
+```
+
+See `templates/examples/` for more examples:
+- `feedback_form.yaml` - Employee feedback survey
+- `event_registration.yaml` - Event registration form
+- `customer_satisfaction.yaml` - Customer satisfaction survey
+
+## OAuth Setup Details
+
+### Prerequisites
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project
+3. Enable **Google Forms API** and **Google Drive API**
+4. Create OAuth 2.0 credentials (Desktop application)
+
+### Get Refresh Token
+
+**Option 1: OAuth Playground (recommended)**
+
+1. Go to [OAuth Playground](https://developers.google.com/oauthplayground/)
+2. Click ⚙️ Settings → Check "Use your own OAuth credentials"
+3. Enter your Client ID and Client Secret
+4. Add scopes:
    - `https://www.googleapis.com/auth/forms.body`
    - `https://www.googleapis.com/auth/forms.responses.readonly`
    - `https://www.googleapis.com/auth/drive.file`
-4. Authorize → Exchange code → Copy refresh_token
+5. Authorize and exchange for tokens
+6. Copy the refresh token
 
-**Get Refresh Token (Option B - Script):**
-```bash
-python get_token.py
-# Browser opens → Login → Copy credentials
-```
-
-### 3. Create .env File
+**Option 2: Interactive wizard**
 
 ```bash
-GOOGLE_CLIENT_ID=123456789-xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxxx
-GOOGLE_REFRESH_TOKEN=1//0gxxxx
+uv run gforms auth setup
 ```
 
-### 4. Run Server (for testing)
+## For Cursor/AI Agents
 
-**Using uv:**
-```bash
-uv run python main.py
-```
+This tool is designed to work as a skill for AI agents in Cursor IDE.
 
-**Using venv:**
-```bash
-# Activate virtual environment first
-source venv/bin/activate
-
-# Run the server
-python main.py
-```
-
-### 5. Configure Your IDE
-
-#### For Cursor IDE (Recommended):
-
-**Location:**
-- Linux/Mac: `~/.cursor/mcp.json`
-- Windows: `%APPDATA%\Cursor\User\globalStorage\mcp.json`
-
-**Configuration (using uv):**
-```json
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/google-forms-mcp",
-        "run",
-        "python",
-        "main.py"
-      ]
-    }
-  }
-}
-```
-
-**Configuration (using venv):**
-```json
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "/absolute/path/to/google-forms-mcp/.venv/bin/python",
-      "args": ["/absolute/path/to/google-forms-mcp/main.py"]
-    }
-  }
-}
-```
-
-#### For Claude Code:
-
-**Location:** `~/.config/claude/config.json`
-
-**Configuration (using uv):**
-```json
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/google-forms-mcp",
-        "run",
-        "python",
-        "main.py"
-      ]
-    }
-  }
-}
-```
-
-**Configuration (using venv):**
-```json
-{
-  "mcpServers": {
-    "google-forms": {
-      "command": "/absolute/path/to/google-forms-mcp/venv/bin/python",
-      "args": ["/absolute/path/to/google-forms-mcp/main.py"]
-    }
-  }
-}
-```
-
-**Important**: Replace `/absolute/path/to/google-forms-mcp` with your actual project location.
-
-## Available Tools
-
-### Forms Management
-- `forms_create` - Create new form
-- `forms_list` - List all forms
-- `forms_get` - Get form details
-- `forms_update` - Update form
-- `forms_delete` - Delete form
-
-### Questions
-- `questions_add` - Add question (12 types)
-- `questions_update` - Update question
-- `questions_delete` - Delete question
-- `questions_move` - Reorder question
-
-### Sections
-- `sections_add` - Add section/page break
-
-### Responses
-- `responses_list` - List all responses
-- `responses_get` - Get specific response
-- `responses_export_csv` - Export to CSV
-
-### Utilities
-- `forms_duplicate` - Copy form
-- `forms_get_link` - Get public link
-
-## Performance Optimization
-
-🚀 **NEW: Optimized Batch Duplication** (87-94% faster)
-
-The `forms_duplicate` tool now uses an optimized batch API that dramatically improves performance:
-
-| Form Size | Old Method | New Method | Improvement |
-|-----------|------------|------------|-------------|
-| 5 items   | 8 API calls (~8s) | 3 calls (~3s) | **62% faster** |
-| 20 items  | 23 calls (~23s) | 3 calls (~3s) | **87% faster** |
-| 50 items  | 53 calls (~53s) | 3 calls (~3s) | **94% faster** |
-| 100 items | 103 calls (~103s) | 3 calls (~3s) | **97% faster** |
-
-**How it works:**
-- Batches all operations (settings + items) into a single API call
-- Constant O(3) time regardless of form size
-- Automatic chunking for very large forms (100+ items)
-- Fully backward compatible
-
-**Usage:**
-```json
-{
-  "tool": "forms_duplicate",
-  "arguments": {
-    "formId": "abc123",
-    "newTitle": "Copy of Survey",
-    "useBatch": true,      // Default: true (optimized)
-    "chunkSize": 100       // Optional: for large forms
-  }
-}
-```
-
-For more details, see `claudedocs/FORM_DUPLICATION_OPTIMIZATION.md`
-
-## Question Types Supported
-
-1. SHORT_ANSWER - Short text
-2. PARAGRAPH - Long text
-3. MULTIPLE_CHOICE - Radio buttons
-4. CHECKBOXES - Multiple selection
-5. DROPDOWN - Dropdown menu
-6. LINEAR_SCALE - 1-5, 1-10 scale
-7. DATE - Date picker
-8. TIME - Time picker
-9. FILE_UPLOAD - File upload
-10. MULTIPLE_CHOICE_GRID - Radio grid
-11. CHECKBOX_GRID - Checkbox grid
-12. RATING - Star/heart rating
-
-## Usage Example
-
-```
-User: Create feedback form
-
-Claude: [calls forms_create]
-✅ Form created: "Feedback Form"
-Link: https://docs.google.com/forms/d/e/.../viewform
-
-User: Add questions: name, department (Engineering/HR/Sales),
-      satisfaction 1-5
-
-Claude: [calls questions_add 3 times]
-✅ Added 3 questions
-
-User: Duplicate this form
-
-Claude: [calls forms_duplicate with useBatch=true]
-✅ Duplicated in 3s using optimized batch API
-   - 3 API calls (87% faster than legacy)
-   - All 3 questions + settings copied
-Link: https://docs.google.com/forms/d/e/.../viewform
-
-User: Show link
-
-Claude: [calls forms_get_link]
-📎 https://docs.google.com/forms/d/e/.../viewform
-
-User: After a week - export responses
-
-Claude: [calls responses_export_csv]
-✅ Exported 15 responses to CSV
-```
+See `skill.md` for complete agent instructions including:
+- Quick reference for all commands
+- Common workflows
+- Error handling
 
 ## Project Structure
 
 ```
-google-forms-mcp/
-├── main.py              # MCP server entry point
-├── auth.py              # OAuth from .env
-├── forms_api.py         # Google Forms API wrapper
-├── tools.py             # 15 MCP tools
-├── get_token.py         # One-time token getter
-├── requirements.txt     # Dependencies
-├── .env                 # OAuth credentials (gitignored)
-├── .env.example         # Template
-├── README.md            # This file
-└── SPECIFICATION.md     # Complete spec
-```
-
-## Architecture
-
-```
-Claude Code
-    ↓ MCP Protocol
-MCP Tools (15 tools)
-    ↓ API Translation
-Google Forms API Client
-    ↓ OAuth (.env)
-Google Forms API v1
+google-forms-cli/
+├── src/gforms/
+│   ├── cli.py          # Typer CLI commands
+│   ├── api.py          # Google Forms API wrapper
+│   ├── auth.py         # OAuth + interactive wizard
+│   ├── models.py       # Pydantic models
+│   └── templates.py    # YAML template engine
+├── templates/
+│   └── examples/       # Example YAML templates
+├── skill.md            # Cursor agent instructions
+├── pyproject.toml      # Project configuration
+└── README.md           # This file
 ```
 
 ## Troubleshooting
 
 **OAuth Errors:**
-- Check .env has all 3 credentials
-- Verify scopes are correct
-- Regenerate refresh_token if expired
+```bash
+uv run gforms auth check  # Verify credentials
+uv run gforms auth setup  # Reconfigure if needed
+```
 
 **API Errors:**
-- Enable Forms API in Cloud Console
-- Enable Drive API in Cloud Console
-- Check API quotas
-
-**MCP Connection:**
-- Verify python path in config
-- Test with `python main.py` directly
-- Check MCP SDK version >=0.9.0
+- Verify Form ID with `uv run gforms list`
+- Check API quotas in Google Cloud Console
 
 ## Security
 
-- `.env` file is gitignored
-- Refresh token gives full account access
-- Token auto-refreshes every hour
-- Revoke: https://myaccount.google.com/permissions
-
-## For AI Agents / Claude Code
-
-**⚠️ IMPORTANT**: This MCP server provides direct access to Google Forms. When working with this project:
-
-- ✅ **DO**: Call MCP tools directly (forms_create, questions_add, etc.)
-- ❌ **DON'T**: Use Context7/WebSearch to research Google Forms API
-- ❌ **DON'T**: Look up JSON schemas or API documentation
-
-**Why?** The API wrapper is already implemented. Just use the tools!
-
-**Quick Test**: Try `forms_list` with no parameters to verify MCP server is working.
-
-## Known Issues & Analysis
-
-⚠️ **questions_add**: Code is correct (verified against official docs), but may fail in some test environments. See [claudedocs/GOOGLE_FORMS_API_FIXES.md](claudedocs/GOOGLE_FORMS_API_FIXES.md) for:
-- Root cause analysis with official Google documentation
-- Evidence-based fix recommendations
-- Troubleshooting steps
-
-## Development
-
-See [SPECIFICATION.md](SPECIFICATION.md) for complete implementation details.
+- `.env` file is gitignored (never committed)
+- Refresh token provides account access - keep secure
+- Revoke access: https://myaccount.google.com/permissions
 
 ## License
 

@@ -1,0 +1,71 @@
+# Event Registration Form Template
+# Usage: uv run gforms apply templates/examples/event_registration.yaml
+
+form:
+  title: "Tech Conference 2025 Registration"
+  description: "Register for our annual technology conference. Limited spots available!"
+
+questions:
+  - type: SHORT_ANSWER
+    title: "Full Name"
+    required: true
+
+  - type: SHORT_ANSWER
+    title: "Email Address"
+    required: true
+
+  - type: SHORT_ANSWER
+    title: "Company/Organization"
+    required: true
+
+  - type: SHORT_ANSWER
+    title: "Job Title"
+    required: false
+
+  - type: MULTIPLE_CHOICE
+    title: "Registration Type"
+    required: true
+    options:
+      - Early Bird ($199)
+      - Standard ($299)
+      - VIP ($499)
+      - Student ($99)
+
+  - type: CHECKBOXES
+    title: "Which sessions are you interested in? (Select all that apply)"
+    required: true
+    options:
+      - "AI/Machine Learning"
+      - "Cloud Computing"
+      - "DevOps & Infrastructure"
+      - "Frontend Development"
+      - "Backend Development"
+      - "Security"
+      - "Leadership & Management"
+
+  - type: MULTIPLE_CHOICE
+    title: "Dietary Requirements"
+    required: true
+    options:
+      - No restrictions
+      - Vegetarian
+      - Vegan
+      - Gluten-free
+      - Kosher
+      - Halal
+      - Other (please specify in comments)
+
+  - type: MULTIPLE_CHOICE
+    title: "How did you hear about this event?"
+    required: false
+    options:
+      - Email newsletter
+      - Social media
+      - Colleague recommendation
+      - Company announcement
+      - Web search
+      - Other
+
+  - type: PARAGRAPH
+    title: "Any special requests or comments?"
+    required: false

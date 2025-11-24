@@ -1,0 +1,81 @@
+# Customer Satisfaction Survey Template
+# Usage: uv run gforms apply templates/examples/customer_satisfaction.yaml
+
+form:
+  title: "Customer Satisfaction Survey"
+  description: "We value your feedback! Please take a moment to share your experience with our product/service."
+
+questions:
+  - type: SHORT_ANSWER
+    title: "Your name (optional)"
+    required: false
+
+  - type: SHORT_ANSWER
+    title: "Email (for follow-up, optional)"
+    required: false
+
+  - type: MULTIPLE_CHOICE
+    title: "How long have you been using our product/service?"
+    required: true
+    options:
+      - Less than 1 month
+      - 1-6 months
+      - 6-12 months
+      - 1-2 years
+      - More than 2 years
+
+  - type: LINEAR_SCALE
+    title: "How satisfied are you with our product/service overall?"
+    required: true
+    low: 1
+    high: 10
+    lowLabel: "Not satisfied at all"
+    highLabel: "Extremely satisfied"
+
+  - type: LINEAR_SCALE
+    title: "How likely are you to recommend us to a friend or colleague?"
+    required: true
+    low: 0
+    high: 10
+    lowLabel: "Not likely at all"
+    highLabel: "Extremely likely"
+
+  - type: MULTIPLE_CHOICE
+    title: "How would you rate the value for money?"
+    required: true
+    options:
+      - Excellent value
+      - Good value
+      - Fair value
+      - Poor value
+
+  - type: MULTIPLE_CHOICE
+    title: "How would you rate our customer support?"
+    required: false
+    options:
+      - Excellent
+      - Good
+      - Average
+      - Below average
+      - Poor
+      - Have not contacted support
+
+  - type: CHECKBOXES
+    title: "What do you like most about our product/service? (Select all that apply)"
+    required: false
+    options:
+      - Ease of use
+      - Features
+      - Performance
+      - Price
+      - Customer support
+      - Documentation
+      - Reliability
+
+  - type: PARAGRAPH
+    title: "What could we do to improve your experience?"
+    required: false
+
+  - type: PARAGRAPH
+    title: "Any other comments or suggestions?"
+    required: false

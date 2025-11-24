@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""Google Forms API wrapper for MCP server.
+"""Google Forms API wrapper for CLI.
 
 Provides high-level interface to Google Forms and Drive APIs with error handling.
 """
 
 import csv
 import io
+import copy
+import time
+import logging
 from typing import Dict, List, Optional, Any
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from auth import get_credentials
+
+from .auth import get_credentials
+
+logger = logging.getLogger("gforms")
 
 
 class FormsAPI:
@@ -118,7 +125,7 @@ class FormsAPI:
                     form = self.service.forms().get(formId=form_id).execute()
                     responses = self.service.forms().responses().list(formId=form_id).execute()
                     response_count = len(responses.get('responses', []))
-                except:
+                except Exception:
                     response_count = 0
 
                 forms.append({
@@ -170,7 +177,6 @@ class FormsAPI:
         """
         try:
             requests = []
-            update_mask = []
 
             if title is not None:
                 requests.append({
@@ -379,13 +385,16 @@ class FormsAPI:
         except HttpError as e:
             raise Exception(f"Failed to add question: {e}")
 
-    def update_question(self, form_id: str, item_id: str, **kwargs) -> Dict[str, Any]:
-        """Update an existing question.
+    def update_item(self, form_id: str, item_id: str, **kwargs) -> Dict[str, Any]:
+        """Update an existing item (question, section, etc.).
+
+        The Google Forms API requires the item type structure to be included
+        in update requests, even when only updating the title.
 
         Args:
             form_id: The form ID
             item_id: The item ID to update
-            **kwargs: Fields to update (title, required, etc.)
+            **kwargs: Fields to update (title, description, required, etc.)
 
         Returns:
             Result of batch update
@@ -394,28 +403,56 @@ class FormsAPI:
             HttpError: If update fails
         """
         try:
-            # Convert itemId to index
-            item_index = self._get_item_index(form_id, item_id)
+            # Get current form to find item structure
+            form = self.get_form(form_id)
+            items = form.get('items', [])
 
-            updates = {}
+            # Find item by ID
+            item_index = None
+            original_item = None
+            for idx, item in enumerate(items):
+                if item.get('itemId') == item_id:
+                    item_index = idx
+                    original_item = item
+                    break
+
+            if item_index is None:
+                raise ValueError(f"Item with ID '{item_id}' not found in form")
+
+            # Build update item - must include item type structure
+            update_item = copy.deepcopy(original_item)
+            update_item.pop('itemId', None)  # Remove read-only field
+
+            # Remove questionId from nested structures
+            if 'questionItem' in update_item:
+                if 'question' in update_item['questionItem']:
+                    update_item['questionItem']['question'].pop('questionId', None)
+            if 'questionGroupItem' in update_item:
+                if 'questions' in update_item['questionGroupItem']:
+                    for q in update_item['questionGroupItem']['questions']:
+                        q.pop('questionId', None)
+
             update_mask = []
 
             if 'title' in kwargs:
-                updates['title'] = kwargs['title']
+                update_item['title'] = kwargs['title']
                 update_mask.append('title')
 
-            if 'required' in kwargs:
-                if 'questionItem' not in updates:
-                    updates['questionItem'] = {}
-                if 'question' not in updates['questionItem']:
-                    updates['questionItem']['question'] = {}
-                updates['questionItem']['question']['required'] = kwargs['required']
+            if 'description' in kwargs:
+                update_item['description'] = kwargs['description']
+                update_mask.append('description')
+
+            if 'required' in kwargs and 'questionItem' in update_item:
+                update_item['questionItem']['question']['required'] = kwargs['required']
                 update_mask.append('questionItem.question.required')
+
+            if not update_mask:
+                raise ValueError("No fields to update")
 
             request = {
                 "requests": [{
                     "updateItem": {
-                        "item": updates,
+                        "item": update_item,
                         "location": {"index": item_index},
                         "updateMask": ','.join(update_mask)
                     }
@@ -425,7 +462,11 @@ class FormsAPI:
             return self.service.forms().batchUpdate(formId=form_id, body=request).execute()
 
         except HttpError as e:
-            raise Exception(f"Failed to update question: {e}")
+            raise Exception(f"Failed to update item: {e}")
+
+    def update_question(self, form_id: str, item_id: str, **kwargs) -> Dict[str, Any]:
+        """Update an existing question. Alias for update_item for backwards compatibility."""
+        return self.update_item(form_id, item_id, **kwargs)
 
     def delete_question(self, form_id: str, item_id: str) -> Dict[str, Any]:
         """Delete a question from a form.
@@ -665,31 +706,12 @@ class FormsAPI:
             HttpError: If duplication fails
         """
         if use_batch:
-            return self.duplicate_form_batch(form_id, new_title, chunk_size)
+            return self._duplicate_form_batch(form_id, new_title, chunk_size)
         else:
-            return self.duplicate_form_legacy(form_id, new_title)
+            return self._duplicate_form_legacy(form_id, new_title)
 
-    def duplicate_form_batch(self, form_id: str, new_title: str, chunk_size: int = 100) -> Dict[str, Any]:
-        """Duplicate a form using optimized batch API (87-94% faster).
-
-        Performance: O(3) API calls for forms up to chunk_size items.
-        For larger forms: O(2 + ceil(N/chunk_size)) calls.
-
-        Args:
-            form_id: The form ID to copy
-            new_title: Title for the new form
-            chunk_size: Maximum items per batch (default 100, recommended max 300)
-
-        Returns:
-            Dict with detailed results including performance metrics
-
-        Raises:
-            HttpError: If duplication fails
-        """
-        import time
-        import logging
-
-        logger = logging.getLogger("google-forms-mcp")
+    def _duplicate_form_batch(self, form_id: str, new_title: str, chunk_size: int = 100) -> Dict[str, Any]:
+        """Duplicate a form using optimized batch API (87-94% faster)."""
         start_time = time.time()
 
         try:
@@ -708,7 +730,6 @@ class FormsAPI:
             # Add settings update if exists
             if 'settings' in original:
                 settings = original['settings'].copy()
-                # Ensure quizSettings is present (API requirement)
                 if 'quizSettings' not in settings:
                     settings['quizSettings'] = {'isQuiz': False}
                 batch_requests.append({
@@ -733,9 +754,8 @@ class FormsAPI:
             total_copied = 0
 
             if batch_requests:
-                # Check if chunking needed
                 if len(batch_requests) <= chunk_size:
-                    # Single batch execution (1 API call)
+                    # Single batch execution
                     try:
                         self.service.forms().batchUpdate(
                             formId=new_form_id,
@@ -743,30 +763,25 @@ class FormsAPI:
                         ).execute()
                         api_calls += 1
                         total_copied = len(items)
-                        logger.info(f"Batch duplication: {len(items)} items in 1 batch")
                     except HttpError as e:
-                        logger.error(f"Batch duplication failed: {e}")
                         raise Exception(f"Failed to batch duplicate form: {e}")
                 else:
-                    # Chunked batch execution (multiple API calls)
+                    # Chunked batch execution
                     chunks = []
                     settings_chunk = []
 
-                    # First chunk includes settings
                     if 'settings' in original:
                         settings_chunk = [batch_requests[0]]
                         item_requests = batch_requests[1:]
                     else:
                         item_requests = batch_requests
 
-                    # Split items into chunks
                     for i in range(0, len(item_requests), chunk_size):
                         chunk = item_requests[i:i + chunk_size]
                         if i == 0 and settings_chunk:
                             chunk = settings_chunk + chunk
                         chunks.append(chunk)
 
-                    # Execute chunks
                     for chunk_idx, chunk in enumerate(chunks):
                         try:
                             self.service.forms().batchUpdate(
@@ -774,12 +789,9 @@ class FormsAPI:
                                 body={"requests": chunk}
                             ).execute()
                             api_calls += 1
-                            # Count items (exclude settings request)
                             items_in_chunk = len([r for r in chunk if 'createItem' in r])
                             total_copied += items_in_chunk
-                            logger.info(f"Chunk {chunk_idx + 1}/{len(chunks)}: {items_in_chunk} items")
                         except HttpError as e:
-                            logger.error(f"Chunk {chunk_idx + 1} failed: {e}")
                             raise Exception(f"Failed to duplicate chunk {chunk_idx + 1}: {e}")
 
             elapsed_time = time.time() - start_time
@@ -799,26 +811,8 @@ class FormsAPI:
         except HttpError as e:
             raise Exception(f"Failed to duplicate form (batch method): {e}")
 
-    def duplicate_form_legacy(self, form_id: str, new_title: str) -> Dict[str, Any]:
-        """Duplicate a form using legacy item-by-item method (backward compatibility).
-
-        Note: This method is slower (O(3+N) API calls) but maintains granular error handling.
-        Use duplicate_form_batch() for 87-94% better performance.
-
-        Args:
-            form_id: The form ID to copy
-            new_title: Title for the new form
-
-        Returns:
-            Dict with newFormId, responderUri, and copiedItems count
-
-        Raises:
-            HttpError: If duplication fails
-        """
-        import time
-        import logging
-
-        logger = logging.getLogger("google-forms-mcp")
+    def _duplicate_form_legacy(self, form_id: str, new_title: str) -> Dict[str, Any]:
+        """Duplicate a form using legacy item-by-item method."""
         start_time = time.time()
 
         try:
@@ -830,12 +824,11 @@ class FormsAPI:
             new_form = self.create_form(new_title, description)
             new_form_id = new_form['formId']
 
-            api_calls = 2  # get_form + create_form
+            api_calls = 2
 
-            # Step 3: Copy settings (ensure quizSettings exists)
+            # Step 3: Copy settings
             if 'settings' in original:
                 settings = original['settings'].copy()
-                # API requires quizSettings field even for non-quiz forms
                 if 'quizSettings' not in settings:
                     settings['quizSettings'] = {'isQuiz': False}
 
@@ -843,7 +836,7 @@ class FormsAPI:
                     "requests": [{
                         "updateSettings": {
                             "settings": settings,
-                            "updateMask": "*"  # Copy all settings
+                            "updateMask": "*"
                         }
                     }]
                 }
@@ -853,15 +846,13 @@ class FormsAPI:
                 ).execute()
                 api_calls += 1
 
-            # Step 4: Copy all items WITHOUT itemId (let API assign new IDs)
+            # Step 4: Copy all items
             items = original.get('items', [])
             copied_count = 0
 
             for i, original_item in enumerate(items):
-                # Create clean copy without itemId and questionId
                 clean_item = self._clean_item_for_duplication(original_item)
 
-                # Create item without IDs (API will assign new ones)
                 request = {
                     "requests": [{
                         "createItem": {
@@ -879,7 +870,6 @@ class FormsAPI:
                     api_calls += 1
                     copied_count += 1
                 except HttpError as item_error:
-                    # Log but continue with next item
                     logger.warning(f"Failed to copy item {i}: {item_error}")
                     continue
 
@@ -900,35 +890,21 @@ class FormsAPI:
             raise Exception(f"Failed to duplicate form: {e}")
 
     def _clean_item_for_duplication(self, original_item: Dict[str, Any]) -> Dict[str, Any]:
-        """Remove IDs and clean invalid characters from item for safe duplication.
-
-        Args:
-            original_item: Original item from form
-
-        Returns:
-            Clean item without itemId or questionId fields and cleaned labels
-        """
-        import copy
-
+        """Remove IDs and clean invalid characters from item for safe duplication."""
         clean_item = {}
 
         # Copy basic fields and clean newlines
-        # Note: Batch API does not allow newlines in ANY displayed text (stricter than individual API)
         if 'title' in original_item:
-            # Keep newlines but replace with space for batch compatibility
             clean_item['title'] = original_item['title'].replace('\n', ' ').replace('\r', '')
         if 'description' in original_item:
-            # Keep newlines but replace with space for batch compatibility
             clean_item['description'] = original_item['description'].replace('\n', ' ').replace('\r', '')
 
-        # Copy item type (questionItem, pageBreakItem, textItem, etc.)
+        # Copy item type
         if 'questionItem' in original_item:
             question = copy.deepcopy(original_item['questionItem']['question'])
-
-            # Remove questionId if present
             question.pop('questionId', None)
 
-            # Clean newlines from scale labels (API requirement for batch operations)
+            # Clean newlines from scale labels
             if 'scaleQuestion' in question:
                 scale = question['scaleQuestion']
                 if 'lowLabel' in scale:
@@ -936,7 +912,7 @@ class FormsAPI:
                 if 'highLabel' in scale:
                     scale['highLabel'] = scale['highLabel'].replace('\n', ' ').replace('\r', '')
 
-            # Clean newlines from choice question options
+            # Clean newlines from choice options
             if 'choiceQuestion' in question:
                 if 'options' in question['choiceQuestion']:
                     for option in question['choiceQuestion']['options']:
@@ -952,12 +928,10 @@ class FormsAPI:
         elif 'questionGroupItem' in original_item:
             group = copy.deepcopy(original_item['questionGroupItem'])
 
-            # Remove questionIds from all questions in group
             if 'questions' in group:
                 for q in group['questions']:
                     q.pop('questionId', None)
 
-            # Clean newlines from grid columns
             if 'grid' in group and 'columns' in group['grid']:
                 if 'options' in group['grid']['columns']:
                     for option in group['grid']['columns']['options']:
@@ -979,3 +953,76 @@ class FormsAPI:
             clean_item['videoItem'] = original_item['videoItem']
 
         return clean_item
+
+    def personalize_form(self, form_id: str, replacements: Dict[str, str]) -> Dict[str, Any]:
+        """Personalize a form by replacing placeholders in titles and descriptions.
+
+        Replaces placeholder text in form title, description, and all item titles/descriptions.
+
+        Args:
+            form_id: The form ID to personalize
+            replacements: Dict of placeholder -> replacement text (e.g. {"NAME": "John"})
+
+        Returns:
+            Dict with form_id, items_updated count, and details
+
+        Raises:
+            HttpError: If personalization fails
+        """
+        try:
+            # Get current form
+            form = self.get_form(form_id)
+            items_updated = 0
+            updates_made = []
+
+            # Update form title and description
+            form_title = form.get('info', {}).get('title', '')
+            form_desc = form.get('info', {}).get('description', '')
+
+            new_title = form_title
+            new_desc = form_desc
+            for placeholder, replacement in replacements.items():
+                new_title = new_title.replace(placeholder, replacement)
+                new_desc = new_desc.replace(placeholder, replacement)
+
+            if new_title != form_title or new_desc != form_desc:
+                self.update_form(form_id, title=new_title, description=new_desc)
+                updates_made.append(f"Form title/description updated")
+
+            # Update all items
+            for item in form.get('items', []):
+                item_id = item.get('itemId')
+                title = item.get('title', '')
+                description = item.get('description', '')
+
+                new_item_title = title
+                new_item_desc = description
+                for placeholder, replacement in replacements.items():
+                    new_item_title = new_item_title.replace(placeholder, replacement)
+                    new_item_desc = new_item_desc.replace(placeholder, replacement)
+
+                # Clean newlines (Google API limitation)
+                new_item_title = new_item_title.replace('\n', ' ').replace('\r', '').strip()
+                new_item_desc = new_item_desc.replace('\n', ' ').replace('\r', '').strip()
+
+                if new_item_title != title.replace('\n', ' ').replace('\r', '').strip() or \
+                   new_item_desc != description.replace('\n', ' ').replace('\r', '').strip():
+                    try:
+                        update_kwargs = {'title': new_item_title}
+                        if description:
+                            update_kwargs['description'] = new_item_desc
+                        self.update_item(form_id, item_id, **update_kwargs)
+                        items_updated += 1
+                        updates_made.append(f"Updated: {new_item_title[:40]}...")
+                    except Exception as e:
+                        logger.warning(f"Failed to update item {item_id}: {e}")
+
+            return {
+                "formId": form_id,
+                "itemsUpdated": items_updated,
+                "totalItems": len(form.get('items', [])),
+                "updates": updates_made
+            }
+
+        except HttpError as e:
+            raise Exception(f"Failed to personalize form: {e}")

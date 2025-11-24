@@ -1,0 +1,78 @@
+# Employee Feedback Form Template
+# Usage: uv run gforms apply templates/examples/feedback_form.yaml
+
+form:
+  title: "Employee Feedback Q1 2025"
+  description: "Please share your honest feedback about your experience at the company. All responses are confidential."
+
+questions:
+  - type: SHORT_ANSWER
+    title: "Your name (optional)"
+    required: false
+
+  - type: DROPDOWN
+    title: "Department"
+    required: true
+    options:
+      - Engineering
+      - Product
+      - Design
+      - Marketing
+      - Sales
+      - HR
+      - Finance
+      - Operations
+
+  - type: LINEAR_SCALE
+    title: "Overall job satisfaction"
+    required: true
+    low: 1
+    high: 5
+    lowLabel: "Very unsatisfied"
+    highLabel: "Very satisfied"
+
+  - type: LINEAR_SCALE
+    title: "Work-life balance"
+    required: true
+    low: 1
+    high: 5
+    lowLabel: "Poor"
+    highLabel: "Excellent"
+
+  - type: LINEAR_SCALE
+    title: "Team collaboration"
+    required: true
+    low: 1
+    high: 5
+    lowLabel: "Needs improvement"
+    highLabel: "Outstanding"
+
+  - type: MULTIPLE_CHOICE
+    title: "How would you rate your manager's leadership?"
+    required: true
+    options:
+      - Excellent
+      - Good
+      - Average
+      - Below average
+      - Poor
+
+  - type: CHECKBOXES
+    title: "What aspects of your job do you enjoy most? (Select all that apply)"
+    required: false
+    options:
+      - Challenging projects
+      - Learning opportunities
+      - Team culture
+      - Flexible schedule
+      - Career growth
+      - Compensation
+      - Company mission
+
+  - type: PARAGRAPH
+    title: "What could we improve to make your work experience better?"
+    required: false
+
+  - type: PARAGRAPH
+    title: "Any additional comments or suggestions?"
+    required: false
