@@ -673,11 +673,21 @@ class FormsAPI:
             question_map = {}
             for item in items:
                 if 'questionItem' in item:
-                    # Get the actual questionId from inside questionItem.question
+                    # Regular question
                     question_id = item['questionItem'].get('question', {}).get('questionId')
                     if question_id:
                         question_map[question_id] = item.get('title', f'Question {question_id}')
                         header.append(question_map[question_id])
+                elif 'questionGroupItem' in item:
+                    # Grid question - has multiple sub-questions
+                    grid_title = item.get('title', 'Grid')
+                    for q in item['questionGroupItem'].get('questions', []):
+                        question_id = q.get('questionId')
+                        row_title = q.get('rowQuestion', {}).get('title', '')
+                        if question_id:
+                            full_title = f"{grid_title} - {row_title}" if row_title else grid_title
+                            question_map[question_id] = full_title
+                            header.append(full_title)
 
             writer.writerow(header)
 
