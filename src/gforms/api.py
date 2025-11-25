@@ -704,8 +704,14 @@ class FormsAPI:
                     if question_id in answers:
                         answer = answers[question_id]
                         if 'textAnswers' in answer:
+                            # Text-based answers (SHORT_ANSWER, PARAGRAPH, CHOICE, SCALE, DATE, TIME, GRID)
                             text_values = [a.get('value', '') for a in answer['textAnswers'].get('answers', [])]
                             row.append('; '.join(text_values))
+                        elif 'fileUploadAnswers' in answer:
+                            # File upload answers - export as "filename (Drive ID)"
+                            files = answer['fileUploadAnswers'].get('answers', [])
+                            file_info = [f"{f.get('fileName', 'file')} ({f.get('fileId', '')})" for f in files]
+                            row.append('; '.join(file_info))
                         else:
                             row.append('')
                     else:
