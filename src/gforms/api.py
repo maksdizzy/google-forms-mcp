@@ -667,14 +667,17 @@ class FormsAPI:
             if include_email:
                 header.append('Email')
 
-            # Extract question titles
+            # Extract question titles using questionId (NOT itemId)
+            # Response answers use questionId, not itemId
             items = form.get('items', [])
             question_map = {}
             for item in items:
                 if 'questionItem' in item:
-                    question_id = item['itemId']
-                    question_map[question_id] = item.get('title', f'Question {question_id}')
-                    header.append(question_map[question_id])
+                    # Get the actual questionId from inside questionItem.question
+                    question_id = item['questionItem'].get('question', {}).get('questionId')
+                    if question_id:
+                        question_map[question_id] = item.get('title', f'Question {question_id}')
+                        header.append(question_map[question_id])
 
             writer.writerow(header)
 
