@@ -1,22 +1,23 @@
-# Google Forms CLI Skill
+# Google Tools CLI Skill
 
-> Manage Google Forms through command-line interface - create forms, add questions, export responses, and batch duplicate with personalization.
+> Manage Google Forms and Sheets through command-line interface - create forms, add questions, export responses, read spreadsheets, and batch duplicate with personalization.
 
 ## Quick Start for Non-Technical Users
 
 ### What This Tool Does
-This tool lets you work with Google Forms from your computer's terminal instead of clicking around in a browser. Perfect for:
+This tool lets you work with Google Forms and Sheets from your computer's terminal instead of clicking around in a browser. Perfect for:
 - Creating multiple personalized copies of a form (e.g., 360 feedback for each employee)
 - Automating form creation from templates
 - Exporting responses for analysis
+- Reading and exporting spreadsheet data
 
 ### First-Time Setup (One Time Only)
 ```bash
 # Step 1: Check if already set up
-uv run gforms auth check
+uv run gtools auth check
 
 # Step 2: If not configured, run setup wizard (follow prompts)
-uv run gforms auth setup
+uv run gtools auth setup
 ```
 
 ### Most Common Task: Create Personalized Form Copies
@@ -29,7 +30,7 @@ uv run gforms auth setup
 # Form ID is: 1WBjiy0jWvGqk21DvlBS9ejEzV4xTY2wUT4m5OioKSU4
 
 # 2. Create a personalized copy for one employee
-uv run gforms duplicate 1WBjiy0jWvGqk21DvlBS9ejEzV4xTY2wUT4m5OioKSU4 \
+uv run gtools forms duplicate 1WBjiy0jWvGqk21DvlBS9ejEzV4xTY2wUT4m5OioKSU4 \
   --title "360 Feedback - John Smith" \
   --personalize "John Smith"
 
@@ -39,59 +40,69 @@ uv run gforms duplicate 1WBjiy0jWvGqk21DvlBS9ejEzV4xTY2wUT4m5OioKSU4 \
 ### Getting Form Links
 ```bash
 # Get shareable link for respondents
-uv run gforms link FORM_ID
+uv run gtools forms link FORM_ID
 ```
 
 ---
 
 ## Capabilities
 
-This skill enables full control over Google Forms:
+This skill enables full control over Google Forms and Sheets:
 - **Create & manage forms** - Create, update, delete, duplicate forms
 - **Duplicate with personalization** - Replace placeholders automatically when copying
 - **Add questions** - All 12 Google Forms question types supported
 - **Export responses** - Get responses as CSV for analysis
 - **YAML templates** - Create simple forms from YAML files
+- **Read spreadsheets** - Get data from Google Sheets in table, CSV, or JSON format
 
 ## Prerequisites
 
 Before using, ensure OAuth is configured:
 ```bash
-uv run gforms auth check
+uv run gtools auth check
 ```
 
 If not configured, run setup wizard:
 ```bash
-uv run gforms auth setup
+uv run gtools auth setup
 ```
 
 ## Quick Reference
 
+### Authentication
+```bash
+# Check credentials
+uv run gtools auth check
+
+# Setup OAuth (interactive wizard)
+uv run gtools auth setup
+```
+
 ### Form Management
 ```bash
 # List all forms
-uv run gforms list
+uv run gtools forms list
 
 # Create new form
-uv run gforms create "Form Title" --description "Optional description"
+uv run gtools forms create "Form Title" --description "Optional description"
 
 # Get form details
-uv run gforms get FORM_ID
+uv run gtools forms get FORM_ID
 
 # Update form
-uv run gforms update FORM_ID --title "New Title" --description "New description"
+uv run gtools forms update FORM_ID --title "New Title" --description "New description"
 
 # Delete form (requires confirmation)
-uv run gforms delete FORM_ID --yes
+uv run gtools forms delete FORM_ID --yes
 
 # Duplicate form (simple copy)
-uv run gforms duplicate FORM_ID --title "Copy of Form"
+uv run gtools forms duplicate FORM_ID --title "Copy of Form"
 
 # Duplicate with personalization (replaces placeholders)
-uv run gforms duplicate FORM_ID --title "360 Feedback - John Smith" --personalize "John Smith"
+uv run gtools forms duplicate FORM_ID --title "360 Feedback - John Smith" --personalize "John Smith"
 
 # Get shareable links
-uv run gforms link FORM_ID
+uv run gtools forms link FORM_ID
 ```
 
 ### Duplicate with Personalization
@@ -102,7 +113,7 @@ The `--personalize` / `-p` option automatically replaces common placeholders:
 
 ```bash
 # Full example
-uv run gforms duplicate SOURCE_FORM_ID \
+uv run gtools forms duplicate SOURCE_FORM_ID \
   --title "Performance Review - Jane Doe" \
   --personalize "Jane Doe"
 ```
@@ -124,64 +135,91 @@ uv run gforms duplicate SOURCE_FORM_ID \
 
 ```bash
 # Short answer
-uv run gforms add-question FORM_ID --type SHORT_ANSWER --title "Your name" --required
+uv run gtools forms add-question FORM_ID --type SHORT_ANSWER --title "Your name" --required
 
 # Paragraph (long text)
-uv run gforms add-question FORM_ID --type PARAGRAPH --title "Comments"
+uv run gtools forms add-question FORM_ID --type PARAGRAPH --title "Comments"
 
 # Multiple choice
-uv run gforms add-question FORM_ID --type MULTIPLE_CHOICE --title "Department" --options "HR,Engineering,Sales" --required
+uv run gtools forms add-question FORM_ID --type MULTIPLE_CHOICE --title "Department" --options "HR,Engineering,Sales" --required
 
 # Checkboxes (multiple select)
-uv run gforms add-question FORM_ID --type CHECKBOXES --title "Skills" --options "Python,JavaScript,Go"
+uv run gtools forms add-question FORM_ID --type CHECKBOXES --title "Skills" --options "Python,JavaScript,Go"
 
 # Dropdown
-uv run gforms add-question FORM_ID --type DROPDOWN --title "Country" --options "USA,UK,Germany,France"
+uv run gtools forms add-question FORM_ID --type DROPDOWN --title "Country" --options "USA,UK,Germany,France"
 
 # Linear scale (1-5, 1-10, etc.)
-uv run gforms add-question FORM_ID --type LINEAR_SCALE --title "Satisfaction" --low 1 --high 5 --low-label "Poor" --high-label "Excellent"
+uv run gtools forms add-question FORM_ID --type LINEAR_SCALE --title "Satisfaction" --low 1 --high 5 --low-label "Poor" --high-label "Excellent"
 
 # Rating (star rating)
-uv run gforms add-question FORM_ID --type RATING --title "Rate us" --high 5
+uv run gtools forms add-question FORM_ID --type RATING --title "Rate us" --high 5
 
 # Date
-uv run gforms add-question FORM_ID --type DATE --title "Preferred date"
+uv run gtools forms add-question FORM_ID --type DATE --title "Preferred date"
 
 # Time
-uv run gforms add-question FORM_ID --type TIME --title "Preferred time"
+uv run gtools forms add-question FORM_ID --type TIME --title "Preferred time"
 ```
 
 ### Question Management
 ```bash
 # Delete question
-uv run gforms delete-question FORM_ID ITEM_ID --yes
+uv run gtools forms delete-question FORM_ID ITEM_ID --yes
 
 # Move question to new position
-uv run gforms move-question FORM_ID ITEM_ID --position 3
+uv run gtools forms move-question FORM_ID ITEM_ID --position 3
 
 # Add section break
-uv run gforms add-section FORM_ID --title "Part 2" --description "Additional questions"
+uv run gtools forms add-section FORM_ID --title "Part 2" --description "Additional questions"
 ```
 
 ### Responses
 ```bash
 # List responses
-uv run gforms responses FORM_ID
+uv run gtools forms responses FORM_ID
 
 # Export to CSV
-uv run gforms export FORM_ID --output responses.csv
+uv run gtools forms export FORM_ID --output responses.csv
 
 # Print CSV to console
-uv run gforms export FORM_ID
+uv run gtools forms export FORM_ID
 ```
 
 ### YAML Templates
 ```bash
 # Create form from template
-uv run gforms apply templates/examples/feedback_form.yaml
+uv run gtools forms apply templates/examples/feedback_form.yaml
 
 # Export existing form to template
-uv run gforms export-template FORM_ID --output my_template.yaml
+uv run gtools forms export-template FORM_ID --output my_template.yaml
+```
+
+### Google Sheets Operations
+```bash
+# Get spreadsheet info and list of sheets
+uv run gtools sheets info SPREADSHEET_ID
+
+# List all sheets in a spreadsheet
+uv run gtools sheets list SPREADSHEET_ID
+
+# Read data (table format)
+uv run gtools sheets read SPREADSHEET_ID
+
+# Read specific range
+uv run gtools sheets read SPREADSHEET_ID A1:D10
+
+# Read from specific sheet
+uv run gtools sheets read SPREADSHEET_ID --sheet "Sheet1"
+
+# Export to CSV
+uv run gtools sheets read SPREADSHEET_ID --format csv --output data.csv
+
+# Export to JSON
+uv run gtools sheets read SPREADSHEET_ID --format json --output data.json
+
+# Read from URL (extracts ID automatically)
+uv run gtools sheets read "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit"
 ```
 
 ## Common Workflows
@@ -193,7 +231,7 @@ For creating many personalized copies, use a simple shell loop:
 ```bash
 # Create personalized forms for multiple employees
 for name in "John Smith" "Jane Doe" "Bob Wilson" "Alice Brown"; do
-  uv run gforms duplicate SOURCE_FORM_ID \
+  uv run gtools forms duplicate SOURCE_FORM_ID \
     --title "360 Feedback - $name" \
     --personalize "$name"
   echo "Created form for $name"
@@ -210,7 +248,7 @@ Or use a file with employee names:
 # Bob Wilson
 
 while IFS= read -r name; do
-  uv run gforms duplicate SOURCE_FORM_ID \
+  uv run gtools forms duplicate SOURCE_FORM_ID \
     --title "360 Feedback - $name" \
     --personalize "$name"
   echo "Created: $name"
@@ -221,21 +259,30 @@ done < employees.txt
 ### Create Feedback Form Quickly
 ```bash
 # Create form
-uv run gforms create "Quick Feedback"
+uv run gtools forms create "Quick Feedback"
 
 # Add satisfaction question
-uv run gforms add-question FORM_ID --type LINEAR_SCALE --title "How satisfied are you?" --low 1 --high 5 --required
+uv run gtools forms add-question FORM_ID --type LINEAR_SCALE --title "How satisfied are you?" --low 1 --high 5 --required
 
 # Add comments
-uv run gforms add-question FORM_ID --type PARAGRAPH --title "Any comments?"
+uv run gtools forms add-question FORM_ID --type PARAGRAPH --title "Any comments?"
 
 # Get link
-uv run gforms link FORM_ID
+uv run gtools forms link FORM_ID
 ```
 
 ### Export and Analyze Responses
 ```bash
-uv run gforms export FORM_ID --output data.csv
+uv run gtools forms export FORM_ID --output data.csv
+```
+
+### Read Spreadsheet Data
+```bash
+# Quick view of spreadsheet
+uv run gtools sheets info SPREADSHEET_ID
+
+# Export all data to CSV
+uv run gtools sheets read SPREADSHEET_ID --format csv --output export.csv
 ```
 
 ## YAML Template Format
@@ -302,11 +349,11 @@ questions:
 ## Error Handling
 
 If you see authentication errors:
-1. Run `uv run gforms auth check` to verify credentials
-2. If invalid, run `uv run gforms auth setup` to reconfigure
+1. Run `uv run gtools auth check` to verify credentials
+2. If invalid, run `uv run gtools auth setup` to reconfigure
 
 If form operations fail:
-1. Verify the form ID is correct with `uv run gforms list`
+1. Verify the form ID is correct with `uv run gtools forms list`
 2. Check you have permission to access the form
 
 ## API Notes
@@ -315,3 +362,12 @@ If form operations fail:
 - Form titles/descriptions cannot contain newlines when created or updated via API
 - Original forms created in Google Forms UI can have newlines, but API updates will flatten them
 - The `duplicate --personalize` command automatically handles newline cleanup
+
+## Backwards Compatibility
+
+The legacy `gforms` command still works and is an alias for `gtools`:
+```bash
+# These are equivalent:
+uv run gforms forms list
+uv run gtools forms list
+```

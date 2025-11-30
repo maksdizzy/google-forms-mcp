@@ -1,11 +1,11 @@
 [project]
-name = "google-forms-cli"
-version = "0.2.0"
-description = "CLI tool for managing Google Forms - create, edit, export forms and responses"
+name = "google-tools-cli"
+version = "0.3.0"
+description = "CLI tool for Google Workspace - manage Forms, Sheets, and more from the command line"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-keywords = ["google-forms", "cli", "forms", "survey", "automation"]
+keywords = ["google-forms", "google-sheets", "cli", "forms", "survey", "spreadsheet", "automation"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -33,7 +33,8 @@ dependencies = [
 ]
 
 [project.scripts]
-gforms = "gforms.cli:run"
+gtools = "gtools.cli:run"
+gforms = "gtools.cli:run"
 
 [project.urls]
 Homepage = "https://github.com/maksdizzy/google-forms-cli"
@@ -45,7 +46,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gforms"]
+packages = ["src/gtools"]
 
 [tool.uv]
 dev-dependencies = [

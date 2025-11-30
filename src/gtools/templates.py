@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""YAML template engine for Google Forms CLI.
+"""YAML template engine for Google Forms.
 
 Supports creating forms from YAML templates and exporting forms to YAML.
 """
@@ -10,8 +9,8 @@ from typing import Dict, Any
 import yaml
 from rich.console import Console
 
-from .api import FormsAPI
-from .models import FormTemplate, QuestionType
+from .forms.api import FormsAPI
+from .forms.models import QuestionType
 
 console = Console()
 
@@ -209,9 +208,9 @@ def export_to_template(form_id: str) -> str:
 
     # Add header comment
     header = """# Google Forms Template
-# Created by: gforms export-template
+# Created by: gtools forms export-template
 #
-# Usage: uv run gforms apply this_file.yaml
+# Usage: gtools forms apply this_file.yaml
 #
 # Supported question types:
 #   - SHORT_ANSWER

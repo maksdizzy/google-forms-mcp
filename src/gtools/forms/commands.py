@@ -1,115 +1,21 @@
-#!/usr/bin/env python3
-"""Google Forms CLI - Main entry point for command-line interface.
-
-Usage:
-    uv run gforms [COMMAND] [OPTIONS]
-
-Commands:
-    auth        Authentication management (setup, check)
-    list        List all forms
-    create      Create a new form
-    get         Get form details
-    update      Update form title/description
-    delete      Delete a form
-    duplicate   Duplicate an existing form
-    link        Get form links
-
-    add-question    Add a question to a form
-    update-question Update a question
-    delete-question Delete a question
-    move-question   Move a question to new position
-
-    add-section     Add a section break
-
-    responses   List form responses
-    response    Get specific response
-    export      Export responses to CSV
-
-    apply           Create form from YAML template
-    export-template Export form to YAML template
-"""
+"""Google Forms CLI commands."""
 
 import typer
-from typing import Optional, List
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
-from rich import print as rprint
 
-from . import __version__, __app_name__
+console = Console()
 
-# Initialize Typer app
-app = typer.Typer(
-    name=__app_name__,
-    help="Google Forms CLI - Manage Google Forms from the command line",
-    add_completion=False,
+# Forms command group
+forms_app = typer.Typer(
+    name="forms",
+    help="Google Forms operations - create, manage, and export forms",
     rich_markup_mode="rich",
 )
 
-# Rich console for pretty output
-console = Console()
 
-
-def version_callback(value: bool):
-    """Show version and exit."""
-    if value:
-        console.print(f"[bold blue]{__app_name__}[/bold blue] version [green]{__version__}[/green]")
-        raise typer.Exit()
-
-
-@app.callback()
-def main(
-    version: bool = typer.Option(
-        None,
-        "--version",
-        "-v",
-        help="Show version and exit",
-        callback=version_callback,
-        is_eager=True,
-    ),
-):
-    """
-    [bold blue]Google Forms CLI[/bold blue] - Manage Google Forms from the command line.
-
-    Use [bold]uv run gforms --help[/bold] for available commands.
-    """
-    pass
-
-
-# =============================================================================
-# AUTH Commands
-# =============================================================================
-
-auth_app = typer.Typer(help="Authentication management")
-app.add_typer(auth_app, name="auth")
-
-
-@auth_app.command("setup")
-def auth_setup():
-    """
-    Interactive OAuth setup wizard.
-
-    Guides you through the process of obtaining Google OAuth credentials.
-    """
-    from .auth import setup_wizard
-    setup_wizard()
-
-
-@auth_app.command("check")
-def auth_check():
-    """
-    Check if OAuth credentials are valid.
-
-    Verifies that credentials in .env file work correctly.
-    """
-    from .auth import check_credentials
-    check_credentials()
-
-
-# =============================================================================
-# FORMS Commands
-# =============================================================================
-
-@app.command("list")
+@forms_app.command("list")
 def forms_list(
     page_size: int = typer.Option(50, "--page-size", "-n", help="Number of forms to list"),
 ):
@@ -150,7 +56,7 @@ def forms_list(
         raise typer.Exit(1)
 
 
-@app.command("create")
+@forms_app.command("create")
 def forms_create(
     title: str = typer.Argument(..., help="Form title"),
     description: str = typer.Option("", "--description", "-d", help="Form description"),
@@ -176,7 +82,7 @@ def forms_create(
         raise typer.Exit(1)
 
 
-@app.command("get")
+@forms_app.command("get")
 def forms_get(
     form_id: str = typer.Argument(..., help="Form ID"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
@@ -219,7 +125,7 @@ def forms_get(
         raise typer.Exit(1)
 
 
-@app.command("update")
+@forms_app.command("update")
 def forms_update(
     form_id: str = typer.Argument(..., help="Form ID"),
     title: Optional[str] = typer.Option(None, "--title", "-t", help="New title"),
@@ -236,7 +142,7 @@ def forms_update(
 
     try:
         api = FormsAPI()
-        result = api.update_form(form_id, title=title, description=description)
+        api.update_form(form_id, title=title, description=description)
 
         console.print("[green]✓ Form updated successfully![/green]")
 
@@ -245,7 +151,7 @@ def forms_update(
         raise typer.Exit(1)
 
 
-@app.command("delete")
+@forms_app.command("delete")
 def forms_delete(
     form_id: str = typer.Argument(..., help="Form ID"),
     confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
@@ -274,7 +180,7 @@ def forms_delete(
         raise typer.Exit(1)
 
 
-@app.command("duplicate")
+@forms_app.command("duplicate")
 def forms_duplicate(
     form_id: str = typer.Argument(..., help="Form ID to duplicate"),
     new_title: str = typer.Option(..., "--title", "-t", help="Title for the new form"),
@@ -287,7 +193,7 @@ def forms_duplicate(
     Use --personalize to replace NAME placeholders with a specific name.
 
     Example:
-        gforms duplicate FORM_ID -t "360 Feedback - John" -p "John"
+        gtools forms duplicate FORM_ID -t "360 Feedback - John" -p "John"
     """
     from .api import FormsAPI
 
@@ -317,7 +223,7 @@ def forms_duplicate(
         raise typer.Exit(1)
 
 
-@app.command("link")
+@forms_app.command("link")
 def forms_link(
     form_id: str = typer.Argument(..., help="Form ID"),
 ):
@@ -339,11 +245,8 @@ def forms_link(
         raise typer.Exit(1)
 
 
-# =============================================================================
-# QUESTION Commands
-# =============================================================================
-
-@app.command("add-question")
+# Question commands
+@forms_app.command("add-question")
 def add_question(
     form_id: str = typer.Argument(..., help="Form ID"),
     question_type: str = typer.Option(..., "--type", "-t", help="Question type (SHORT_ANSWER, PARAGRAPH, MULTIPLE_CHOICE, CHECKBOXES, DROPDOWN, LINEAR_SCALE, DATE, TIME, RATING)"),
@@ -381,7 +284,7 @@ def add_question(
             kwargs["lowLabel"] = low_label
             kwargs["highLabel"] = high_label
 
-        result = api.add_question(form_id, question_type, title, **kwargs)
+        api.add_question(form_id, question_type, title, **kwargs)
 
         console.print("[green]✓ Question added successfully![/green]")
 
@@ -390,7 +293,7 @@ def add_question(
         raise typer.Exit(1)
 
 
-@app.command("delete-question")
+@forms_app.command("delete-question")
 def delete_question(
     form_id: str = typer.Argument(..., help="Form ID"),
     item_id: str = typer.Argument(..., help="Item ID to delete"),
@@ -418,7 +321,7 @@ def delete_question(
         raise typer.Exit(1)
 
 
-@app.command("move-question")
+@forms_app.command("move-question")
 def move_question(
     form_id: str = typer.Argument(..., help="Form ID"),
     item_id: str = typer.Argument(..., help="Item ID to move"),
@@ -440,7 +343,7 @@ def move_question(
         raise typer.Exit(1)
 
 
-@app.command("add-section")
+@forms_app.command("add-section")
 def add_section(
     form_id: str = typer.Argument(..., help="Form ID"),
     title: str = typer.Option(..., "--title", "-t", help="Section title"),
@@ -463,11 +366,8 @@ def add_section(
         raise typer.Exit(1)
 
 
-# =============================================================================
-# RESPONSE Commands
-# =============================================================================
-
-@app.command("responses")
+# Response commands
+@forms_app.command("responses")
 def list_responses(
     form_id: str = typer.Argument(..., help="Form ID"),
     page_size: int = typer.Option(100, "--page-size", "-n", help="Number of responses"),
@@ -505,7 +405,7 @@ def list_responses(
         raise typer.Exit(1)
 
 
-@app.command("export")
+@forms_app.command("export")
 def export_responses(
     form_id: str = typer.Argument(..., help="Form ID"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
@@ -540,11 +440,8 @@ def export_responses(
         raise typer.Exit(1)
 
 
-# =============================================================================
-# TEMPLATE Commands
-# =============================================================================
-
-@app.command("apply")
+# Template commands
+@forms_app.command("apply")
 def apply_template(
     template_path: str = typer.Argument(..., help="Path to YAML template file"),
 ):
@@ -553,7 +450,7 @@ def apply_template(
 
     See templates/examples/ for template format.
     """
-    from .templates import create_from_template
+    from ..templates import create_from_template
 
     try:
         result = create_from_template(template_path)
@@ -568,7 +465,7 @@ def apply_template(
         raise typer.Exit(1)
 
 
-@app.command("export-template")
+@forms_app.command("export-template")
 def export_template(
     form_id: str = typer.Argument(..., help="Form ID to export"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
@@ -576,7 +473,7 @@ def export_template(
     """
     Export a form to YAML template format.
     """
-    from .templates import export_to_template
+    from ..templates import export_to_template
 
     try:
         yaml_content = export_to_template(form_id)
@@ -591,16 +488,3 @@ def export_template(
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
-
-
-# =============================================================================
-# Entry Point
-# =============================================================================
-
-def run():
-    """Entry point for the CLI."""
-    app()
-
-
-if __name__ == "__main__":
-    run()

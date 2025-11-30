@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Pydantic models for Google Forms CLI.
+"""Pydantic models for Google Forms.
 
 Provides validation and serialization for form templates and API data.
 """

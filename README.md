@@ -1,12 +1,13 @@
-# Google Forms CLI
+# Google Tools CLI
 
-Command-line tool for managing Google Forms - create forms, add questions, export responses.
+Command-line tool for managing Google Workspace - create forms, add questions, export responses, read spreadsheets.
 
 ## Features
 
 - **Full form management** - Create, update, delete, duplicate forms
 - **All question types** - 12 Google Forms question types supported
 - **Response export** - Export responses to CSV
+- **Google Sheets** - Read and export spreadsheet data
 - **YAML templates** - Create complex forms from simple YAML files
 - **Interactive OAuth wizard** - Easy setup for non-technical users
 - **Cursor Skill** - Works as an AI agent skill in Cursor IDE
@@ -28,7 +29,7 @@ uv sync
 
 ```bash
 # Run interactive setup wizard
-uv run gforms auth setup
+uv run gtools auth setup
 ```
 
 The wizard guides you through:
@@ -40,54 +41,101 @@ The wizard guides you through:
 
 ```bash
 # List your forms
-uv run gforms list
+uv run gtools forms list
 
 # Create a new form
-uv run gforms create "My Survey"
+uv run gtools forms create "My Survey"
 
 # Add a question
-uv run gforms add-question FORM_ID --type MULTIPLE_CHOICE --title "Rate us" --options "1,2,3,4,5"
+uv run gtools forms add-question FORM_ID --type MULTIPLE_CHOICE --title "Rate us" --options "1,2,3,4,5"
 
 # Export responses
-uv run gforms export FORM_ID --output responses.csv
+uv run gtools forms export FORM_ID --output responses.csv
+
+# Read a spreadsheet
+uv run gtools sheets read SPREADSHEET_ID
+```
+
+## CLI Structure
+
+```
+gtools
+├── auth          # Authentication management
+│   ├── setup     # Interactive OAuth wizard
+│   └── check     # Verify credentials
+├── forms         # Google Forms operations
+│   ├── list      # List all forms
+│   ├── create    # Create new form
+│   ├── get       # Get form details
+│   ├── update    # Update form
+│   ├── delete    # Delete form
+│   ├── duplicate # Copy form with personalization
+│   ├── link      # Get share links
+│   ├── add-question    # Add question
+│   ├── delete-question # Remove question
+│   ├── move-question   # Reorder question
+│   ├── add-section     # Add section break
+│   ├── responses       # List responses
+│   ├── export          # Export to CSV
+│   ├── apply           # Create from YAML
+│   └── export-template # Export to YAML
+└── sheets        # Google Sheets operations
+    ├── info      # Get spreadsheet metadata
+    ├── list      # List sheets
+    └── read      # Read data (table/CSV/JSON)
 ```
 
 ## Commands
+
+### Authentication
+
+| Command | Description |
+|---------|-------------|
+| `gtools auth setup` | Interactive OAuth setup |
+| `gtools auth check` | Verify credentials |
 
 ### Form Management
 
 | Command | Description |
 |---------|-------------|
-| `gforms list` | List all forms |
-| `gforms create "Title"` | Create new form |
-| `gforms get FORM_ID` | Get form details |
-| `gforms update FORM_ID` | Update form |
-| `gforms delete FORM_ID` | Delete form |
-| `gforms duplicate FORM_ID` | Copy form |
-| `gforms link FORM_ID` | Get share links |
+| `gtools forms list` | List all forms |
+| `gtools forms create "Title"` | Create new form |
+| `gtools forms get FORM_ID` | Get form details |
+| `gtools forms update FORM_ID` | Update form |
+| `gtools forms delete FORM_ID` | Delete form |
+| `gtools forms duplicate FORM_ID` | Copy form |
+| `gtools forms link FORM_ID` | Get share links |
 
 ### Questions
 
 | Command | Description |
 |---------|-------------|
-| `gforms add-question` | Add question |
-| `gforms delete-question` | Remove question |
-| `gforms move-question` | Reorder question |
-| `gforms add-section` | Add section break |
+| `gtools forms add-question` | Add question |
+| `gtools forms delete-question` | Remove question |
+| `gtools forms move-question` | Reorder question |
+| `gtools forms add-section` | Add section break |
 
 ### Responses
 
 | Command | Description |
 |---------|-------------|
-| `gforms responses FORM_ID` | List responses |
-| `gforms export FORM_ID` | Export to CSV |
+| `gtools forms responses FORM_ID` | List responses |
+| `gtools forms export FORM_ID` | Export to CSV |
 
 ### Templates
 
 | Command | Description |
 |---------|-------------|
-| `gforms apply template.yaml` | Create from template |
-| `gforms export-template FORM_ID` | Export to YAML |
+| `gtools forms apply template.yaml` | Create from template |
+| `gtools forms export-template FORM_ID` | Export to YAML |
+
+### Google Sheets
+
+| Command | Description |
+|---------|-------------|
+| `gtools sheets info SPREADSHEET_ID` | Get spreadsheet metadata |
+| `gtools sheets list SPREADSHEET_ID` | List sheets |
+| `gtools sheets read SPREADSHEET_ID` | Read data |
 
 ## Question Types
 
@@ -134,8 +182,9 @@ questions:
 ```
 
 Apply with:
+
 ```bash
-uv run gforms apply feedback.yaml
+uv run gtools forms apply feedback.yaml
 ```
 
 See `templates/examples/` for more examples:
@@ -149,7 +198,7 @@ See `templates/examples/` for more examples:
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project
-3. Enable **Google Forms API** and **Google Drive API**
+3. Enable **Google Forms API**, **Google Drive API**, and **Google Sheets API**
 4. Create OAuth 2.0 credentials (Desktop application)
 
 ### Get Refresh Token
@@ -157,19 +206,20 @@ See `templates/examples/` for more examples:
 **Option 1: OAuth Playground (recommended)**
 
 1. Go to [OAuth Playground](https://developers.google.com/oauthplayground/)
-2. Click ⚙️ Settings → Check "Use your own OAuth credentials"
+2. Click Settings → Check "Use your own OAuth credentials"
 3. Enter your Client ID and Client Secret
 4. Add scopes:
    - `https://www.googleapis.com/auth/forms.body`
    - `https://www.googleapis.com/auth/forms.responses.readonly`
    - `https://www.googleapis.com/auth/drive.file`
+   - `https://www.googleapis.com/auth/spreadsheets.readonly`
 5. Authorize and exchange for tokens
 6. Copy the refresh token
 
 **Option 2: Interactive wizard**
 
 ```bash
-uv run gforms auth setup
+uv run gtools auth setup
 ```
 
 ## For Cursor/AI Agents
@@ -185,29 +235,50 @@ See `skill.md` for complete agent instructions including:
 
 ```
 google-forms-cli/
-├── src/gforms/
-│   ├── cli.py          # Typer CLI commands
-│   ├── api.py          # Google Forms API wrapper
-│   ├── auth.py         # OAuth + interactive wizard
-│   ├── models.py       # Pydantic models
-│   └── templates.py    # YAML template engine
+├── src/gtools/
+│   ├── __init__.py       # Package init
+│   ├── cli.py            # Main CLI entry point
+│   ├── templates.py      # YAML template engine
+│   ├── core/
+│   │   ├── auth.py       # OAuth + interactive wizard
+│   │   ├── base.py       # BaseAPI class
+│   │   └── scopes.py     # OAuth scopes
+│   ├── forms/
+│   │   ├── api.py        # Google Forms API wrapper
+│   │   ├── models.py     # Pydantic models
+│   │   └── commands.py   # Forms CLI commands
+│   └── sheets/
+│       ├── api.py        # Google Sheets API wrapper
+│       ├── models.py     # Pydantic models
+│       └── commands.py   # Sheets CLI commands
 ├── templates/
-│   └── examples/       # Example YAML templates
-├── skill.md            # Cursor agent instructions
-├── pyproject.toml      # Project configuration
-└── README.md           # This file
+│   └── examples/         # Example YAML templates
+├── skill.md              # Cursor agent instructions
+├── pyproject.toml        # Project configuration
+└── README.md             # This file
+```
+
+## Backwards Compatibility
+
+The legacy `gforms` command still works as an alias:
+
+```bash
+# Both commands work identically
+uv run gforms forms list
+uv run gtools forms list
 ```
 
 ## Troubleshooting
 
 **OAuth Errors:**
+
 ```bash
-uv run gforms auth check  # Verify credentials
-uv run gforms auth setup  # Reconfigure if needed
+uv run gtools auth check  # Verify credentials
+uv run gtools auth setup  # Reconfigure if needed
 ```
 
 **API Errors:**
-- Verify Form ID with `uv run gforms list`
+- Verify Form ID with `uv run gtools forms list`
 - Check API quotas in Google Cloud Console
 
 ## Security

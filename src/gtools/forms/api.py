@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Google Forms API wrapper for CLI.
+"""Google Forms API wrapper.
 
 Provides high-level interface to Google Forms and Drive APIs with error handling.
 """
@@ -11,22 +10,18 @@ import time
 import logging
 from typing import Dict, List, Optional, Any
 
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from .auth import get_credentials
+from ..core.base import BaseAPI
 
-logger = logging.getLogger("gforms")
+logger = logging.getLogger("gtools")
 
 
-class FormsAPI:
+class FormsAPI(BaseAPI):
     """Google Forms API client with comprehensive form management capabilities."""
 
-    def __init__(self):
-        """Initialize API clients with OAuth credentials."""
-        self.creds = get_credentials()
-        self.service = build('forms', 'v1', credentials=self.creds)
-        self.drive_service = build('drive', 'v3', credentials=self.creds)
+    API_NAME = "forms"
+    API_VERSION = "v1"
 
     def _sync_drive_name(self, form_id: str, title: str) -> None:
         """Sync Drive document name with form title.

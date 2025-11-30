@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-"""OAuth authentication module for Google Forms CLI.
+"""OAuth authentication module for Google Tools CLI.
 
 Handles OAuth 2.0 authentication with interactive setup wizard
 and credential validation for non-technical users.
 """
 
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -18,17 +16,12 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 
+from .scopes import SCOPES
+
 # Load environment variables from .env file
 load_dotenv()
 
 console = Console()
-
-# Required OAuth scopes for Google Forms and Drive APIs
-SCOPES = [
-    'https://www.googleapis.com/auth/forms.body',
-    'https://www.googleapis.com/auth/forms.responses.readonly',
-    'https://www.googleapis.com/auth/drive.file'
-]
 
 
 def get_credentials() -> Credentials:
@@ -58,7 +51,7 @@ def get_credentials() -> Credentials:
 
         raise ValueError(
             f"Missing OAuth credentials in .env file: {', '.join(missing)}\n"
-            f"Run 'uv run gforms auth setup' to configure credentials."
+            f"Run 'gtools auth setup' to configure credentials."
         )
 
     # Create credentials object with refresh token
@@ -85,7 +78,7 @@ def check_credentials():
     env_path = Path(".env")
     if not env_path.exists():
         console.print("[red]✗ .env file not found[/red]")
-        console.print("  Run 'uv run gforms auth setup' to configure credentials.")
+        console.print("  Run 'gtools auth setup' to configure credentials.")
         return
 
     # Check required variables
@@ -109,7 +102,7 @@ def check_credentials():
 
     if not all_present:
         console.print("\n[yellow]Some credentials are missing.[/yellow]")
-        console.print("Run 'uv run gforms auth setup' to configure.")
+        console.print("Run 'gtools auth setup' to configure.")
         return
 
     # Try to authenticate
@@ -121,7 +114,7 @@ def check_credentials():
     except RefreshError as e:
         console.print(f"[red]✗ Authentication failed: {e}[/red]")
         console.print("  Your refresh token may be invalid or expired.")
-        console.print("  Run 'uv run gforms auth setup' to get new credentials.")
+        console.print("  Run 'gtools auth setup' to get new credentials.")
     except Exception as e:
         console.print(f"[red]✗ Error: {e}[/red]")
 
@@ -129,7 +122,7 @@ def check_credentials():
 def setup_wizard():
     """Interactive OAuth setup wizard for non-technical users."""
     console.print(Panel.fit(
-        "[bold blue]Google Forms CLI - OAuth Setup Wizard[/bold blue]\n\n"
+        "[bold blue]Google Tools CLI - OAuth Setup Wizard[/bold blue]\n\n"
         "This wizard will help you configure Google OAuth credentials.\n"
         "You'll need to create credentials in Google Cloud Console first.",
         title="🔐 Authentication Setup"
@@ -138,7 +131,10 @@ def setup_wizard():
     console.print("\n[bold]Before you begin:[/bold]")
     console.print("1. Go to [link=https://console.cloud.google.com]Google Cloud Console[/link]")
     console.print("2. Create a new project (or select existing)")
-    console.print("3. Enable [bold]Google Forms API[/bold] and [bold]Google Drive API[/bold]")
+    console.print("3. Enable required APIs:")
+    console.print("   - [bold]Google Forms API[/bold]")
+    console.print("   - [bold]Google Sheets API[/bold]")
+    console.print("   - [bold]Google Drive API[/bold]")
     console.print("4. Go to [bold]APIs & Services → Credentials[/bold]")
     console.print("5. Create [bold]OAuth 2.0 Client ID[/bold] (Desktop application)")
     console.print()
@@ -146,7 +142,7 @@ def setup_wizard():
     if not Confirm.ask("Do you have OAuth credentials ready?"):
         console.print("\n[yellow]Please create OAuth credentials first and run this wizard again.[/yellow]")
         console.print("\n[bold]Detailed instructions:[/bold]")
-        console.print("https://developers.google.com/forms/api/quickstart/python#set_up_your_environment")
+        console.print("https://developers.google.com/workspace/guides/create-credentials")
         return
 
     # Collect credentials
@@ -181,9 +177,8 @@ def setup_wizard():
         console.print("2. Click ⚙️ Settings → Check 'Use your own OAuth credentials'")
         console.print("3. Enter your Client ID and Client Secret")
         console.print("4. In 'Select & authorize APIs', add these scopes:")
-        console.print("   - https://www.googleapis.com/auth/forms.body")
-        console.print("   - https://www.googleapis.com/auth/forms.responses.readonly")
-        console.print("   - https://www.googleapis.com/auth/drive.file")
+        for scope in SCOPES:
+            console.print(f"   - {scope}")
         console.print("5. Click 'Authorize APIs' and sign in")
         console.print("6. Click 'Exchange authorization code for tokens'")
         console.print("7. Copy the [bold]refresh_token[/bold] value")
@@ -208,8 +203,8 @@ def setup_wizard():
     # Save to .env file
     console.print("\n[bold]Saving credentials to .env file...[/bold]")
 
-    env_content = f"""# Google Forms CLI OAuth Credentials
-# Generated by: uv run gforms auth setup
+    env_content = f"""# Google Tools CLI OAuth Credentials
+# Generated by: gtools auth setup
 
 GOOGLE_CLIENT_ID={client_id}
 GOOGLE_CLIENT_SECRET={client_secret}
@@ -250,10 +245,11 @@ GOOGLE_REFRESH_TOKEN={refresh_token}
 
         console.print(Panel.fit(
             "[bold green]Setup Complete![/bold green]\n\n"
-            "You can now use the Google Forms CLI:\n\n"
-            "  [cyan]uv run gforms list[/cyan]          - List your forms\n"
-            "  [cyan]uv run gforms create \"Title\"[/cyan] - Create a new form\n"
-            "  [cyan]uv run gforms --help[/cyan]        - See all commands",
+            "You can now use the Google Tools CLI:\n\n"
+            "  [cyan]gtools forms list[/cyan]          - List your forms\n"
+            "  [cyan]gtools forms create \"Title\"[/cyan] - Create a new form\n"
+            "  [cyan]gtools sheets read ID[/cyan]      - Read spreadsheet data\n"
+            "  [cyan]gtools --help[/cyan]              - See all commands",
             title="✅ Success"
         ))
 
