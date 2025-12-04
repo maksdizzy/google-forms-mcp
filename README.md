@@ -170,6 +170,9 @@ form:
 questions:
   - type: SHORT_ANSWER
     title: "Your name"
+    description: |
+      Enter your full name.
+      This helps us identify your feedback.
     required: true
 
   - type: MULTIPLE_CHOICE
@@ -180,6 +183,8 @@ questions:
   - type: PARAGRAPH
     title: "Comments"
 ```
+
+Use YAML multiline syntax (`|`) for descriptions with line breaks.
 
 Apply with:
 

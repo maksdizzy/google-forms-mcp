@@ -137,6 +137,10 @@ uv run gtools forms duplicate SOURCE_FORM_ID \
 # Short answer
 uv run gtools forms add-question FORM_ID --type SHORT_ANSWER --title "Your name" --required
 
+# Short answer with description (supports \\n for newlines)
+uv run gtools forms add-question FORM_ID --type SHORT_ANSWER --title "Email" \
+  --description "Your work email address.\\nWe'll use this to send you updates." --required
+
 # Paragraph (long text)
 uv run gtools forms add-question FORM_ID --type PARAGRAPH --title "Comments"
 
@@ -295,6 +299,9 @@ form:
 questions:
   - type: SHORT_ANSWER
     title: "Your name"
+    description: |
+      Enter your full legal name.
+      This will be used for identification purposes.
     required: true
 
   - type: MULTIPLE_CHOICE
@@ -307,6 +314,7 @@ questions:
 
   - type: LINEAR_SCALE
     title: "Satisfaction"
+    description: "Rate your overall satisfaction with the company"
     low: 1
     high: 5
     lowLabel: "Not satisfied"
@@ -316,6 +324,8 @@ questions:
     title: "Comments"
     required: false
 ```
+
+**Note**: Use YAML multiline syntax (`|`) for descriptions with line breaks.
 
 ### YAML Template Limitations
 
@@ -359,9 +369,23 @@ If form operations fail:
 ## API Notes
 
 **Google Forms API Limitations**:
-- Form titles/descriptions cannot contain newlines when created or updated via API
-- Original forms created in Google Forms UI can have newlines, but API updates will flatten them
-- The `duplicate --personalize` command automatically handles newline cleanup
+- **Titles** cannot contain newlines (API limitation) - newlines are automatically converted to spaces
+- **Descriptions** CAN contain newlines - use `\\n` in CLI commands for line breaks
+- When duplicating forms, titles with newlines are smartly split (first line → title, rest → description)
+
+**Newline Support**:
+```bash
+# Add question with multiline description
+uv run gtools forms add-question FORM_ID --type SHORT_ANSWER --title "Name" \
+  --description "Enter your full name.\\nThis will be used for identification."
+
+# Add section with multiline description
+uv run gtools forms add-section FORM_ID --title "Part 2" \
+  --description "Additional questions\\nPlease answer all required fields."
+
+# Update form with multiline description
+uv run gtools forms update FORM_ID --description "Survey description.\\nThank you for participating."
+```
 
 ## Backwards Compatibility
 

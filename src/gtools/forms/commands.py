@@ -139,10 +139,12 @@ def forms_get(
 def forms_update(
     form_id: str = typer.Argument(..., help="Form ID"),
     title: Optional[str] = typer.Option(None, "--title", "-t", help="New title"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="New description"),
+    description: Optional[str] = typer.Option(None, "--description", "-d", help="New description (supports \\n for newlines)"),
 ):
     """
     Update form title and/or description.
+
+    Use \\n in --description for line breaks.
     """
     from .api import FormsAPI
 
@@ -152,7 +154,9 @@ def forms_update(
 
     try:
         api = FormsAPI()
-        api.update_form(form_id, title=title, description=description)
+        # Process description for newlines
+        processed_desc = _process_text(description) if description else description
+        api.update_form(form_id, title=title, description=processed_desc)
 
         console.print("[green]✓ Form updated successfully![/green]")
 
