@@ -92,10 +92,14 @@ def create_from_template(template_path: str) -> Dict[str, Any]:
                 kwargs['maxFileSize'] = q.get('maxFileSize', 10485760)
                 kwargs['allowedTypes'] = q.get('allowedTypes', [])
 
+            # Get description (supports newlines via YAML multiline syntax)
+            description = q.get('description', '')
+
             api.add_question(
                 form_id=form_id,
                 question_type=question_type,
                 title=title,  # Use cleaned title
+                description=description,  # Supports newlines
                 **kwargs
             )
             questions_added += 1
@@ -148,6 +152,10 @@ def export_to_template(form_id: str) -> str:
             'title': item.get('title', 'Untitled'),
             'required': question.get('required', False),
         }
+
+        # Add description if present
+        if item.get('description'):
+            q['description'] = item['description']
 
         # Determine question type and add specific fields
         if 'textQuestion' in question:
@@ -225,6 +233,14 @@ def export_to_template(form_id: str) -> str:
 #   - MULTIPLE_CHOICE_GRID (with rows, columns)
 #   - CHECKBOX_GRID (with rows, columns)
 #   - FILE_UPLOAD (with folderId, maxFiles)
+#
+# All questions support 'description' field with multiline text (use YAML |)
+# Example:
+#   - type: SHORT_ANSWER
+#     title: "Your name"
+#     description: |
+#       Please enter your full name.
+#       This will be used for identification.
 #
 """
 

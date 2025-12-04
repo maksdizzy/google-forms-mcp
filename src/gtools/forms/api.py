@@ -265,7 +265,7 @@ class FormsAPI(BaseAPI):
 
         raise ValueError(f"Item with ID '{item_id}' not found in form")
 
-    def add_question(self, form_id: str, question_type: str, title: str, **kwargs) -> Dict[str, Any]:
+    def add_question(self, form_id: str, question_type: str, title: str, description: str = "", **kwargs) -> Dict[str, Any]:
         """Add a question to a form.
 
         Supports all 12 Google Forms question types with appropriate parameters.
@@ -274,6 +274,7 @@ class FormsAPI(BaseAPI):
             form_id: The form ID
             question_type: Type of question (SHORT_ANSWER, PARAGRAPH, MULTIPLE_CHOICE, etc.)
             title: Question text
+            description: Question description/helper text (supports newlines)
             **kwargs: Additional parameters based on question type
 
         Returns:
@@ -380,16 +381,21 @@ class FormsAPI(BaseAPI):
             else:
                 raise ValueError(f"Unsupported question type: {question_type}")
 
-            # Correct API structure: title at item level, question details nested
+            # Correct API structure: title/description at item level, question details nested
+            item = {
+                "title": title,
+                "questionItem": {
+                    "question": question
+                }
+            }
+            # Add description if provided (supports newlines)
+            if description:
+                item["description"] = description
+
             request = {
                 "requests": [{
                     "createItem": {
-                        "item": {
-                            "title": title,
-                            "questionItem": {
-                                "question": question
-                            }
-                        },
+                        "item": item,
                         "location": location
                     }
                 }]
@@ -928,11 +934,30 @@ class FormsAPI(BaseAPI):
         """Remove IDs and clean invalid characters from item for safe duplication."""
         clean_item = {}
 
-        # Copy basic fields and clean newlines
+        # Copy basic fields
+        # Title cannot have newlines (API limitation), but description can
         if 'title' in original_item:
-            clean_item['title'] = original_item['title'].replace('\n', ' ').replace('\r', '')
-        if 'description' in original_item:
-            clean_item['description'] = original_item['description'].replace('\n', ' ').replace('\r', '')
+            title = original_item['title']
+            if '\n' in title:
+                # Smart handling: first line becomes title, rest goes to description
+                parts = title.split('\n', 1)
+                clean_item['title'] = parts[0].strip()
+                # Append remaining content to description
+                extra_content = parts[1].strip() if len(parts) > 1 else ''
+                existing_desc = original_item.get('description', '')
+                if extra_content:
+                    if existing_desc:
+                        clean_item['description'] = extra_content + '\n\n' + existing_desc
+                    else:
+                        clean_item['description'] = extra_content
+                elif existing_desc:
+                    clean_item['description'] = existing_desc
+            else:
+                clean_item['title'] = title
+                if 'description' in original_item:
+                    clean_item['description'] = original_item['description']
+        elif 'description' in original_item:
+            clean_item['description'] = original_item['description']
 
         # Copy item type
         if 'questionItem' in original_item:
@@ -1036,12 +1061,12 @@ class FormsAPI(BaseAPI):
                     new_item_title = new_item_title.replace(placeholder, replacement)
                     new_item_desc = new_item_desc.replace(placeholder, replacement)
 
-                # Clean newlines (Google API limitation)
+                # Clean newlines from title only (API limitation - titles cannot have newlines)
+                # Descriptions CAN have newlines, so we preserve them
                 new_item_title = new_item_title.replace('\n', ' ').replace('\r', '').strip()
-                new_item_desc = new_item_desc.replace('\n', ' ').replace('\r', '').strip()
 
                 if new_item_title != title.replace('\n', ' ').replace('\r', '').strip() or \
-                   new_item_desc != description.replace('\n', ' ').replace('\r', '').strip():
+                   new_item_desc != description:
                     try:
                         update_kwargs = {'title': new_item_title}
                         if description:

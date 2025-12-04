@@ -7,6 +7,16 @@ from rich.table import Table
 
 console = Console()
 
+
+def _process_text(text: str) -> str:
+    """Convert escaped newlines to actual newlines for CLI input.
+
+    Allows users to pass 'Line1\\nLine2' and have it converted to actual newlines.
+    """
+    if text:
+        return text.replace('\\n', '\n')
+    return text
+
 # Forms command group
 forms_app = typer.Typer(
     name="forms",
@@ -251,6 +261,7 @@ def add_question(
     form_id: str = typer.Argument(..., help="Form ID"),
     question_type: str = typer.Option(..., "--type", "-t", help="Question type (SHORT_ANSWER, PARAGRAPH, MULTIPLE_CHOICE, CHECKBOXES, DROPDOWN, LINEAR_SCALE, DATE, TIME, RATING)"),
     title: str = typer.Option(..., "--title", help="Question text"),
+    description: str = typer.Option("", "--description", "-d", help="Question description/helper text (supports \\n for newlines)"),
     options: Optional[str] = typer.Option(None, "--options", "-o", help="Comma-separated options for choice questions"),
     required: bool = typer.Option(False, "--required", "-r", help="Make question required"),
     position: int = typer.Option(0, "--position", "-p", help="Position index"),
@@ -264,6 +275,8 @@ def add_question(
 
     Supported types: SHORT_ANSWER, PARAGRAPH, MULTIPLE_CHOICE, CHECKBOXES,
     DROPDOWN, LINEAR_SCALE, DATE, TIME, RATING
+
+    Use \\n in --description for line breaks.
     """
     from .api import FormsAPI
 
@@ -284,7 +297,10 @@ def add_question(
             kwargs["lowLabel"] = low_label
             kwargs["highLabel"] = high_label
 
-        api.add_question(form_id, question_type, title, **kwargs)
+        # Process description for newlines
+        processed_desc = _process_text(description)
+
+        api.add_question(form_id, question_type, title, description=processed_desc, **kwargs)
 
         console.print("[green]✓ Question added successfully![/green]")
 
@@ -347,17 +363,21 @@ def move_question(
 def add_section(
     form_id: str = typer.Argument(..., help="Form ID"),
     title: str = typer.Option(..., "--title", "-t", help="Section title"),
-    description: str = typer.Option("", "--description", "-d", help="Section description"),
+    description: str = typer.Option("", "--description", "-d", help="Section description (supports \\n for newlines)"),
     position: Optional[int] = typer.Option(None, "--position", "-p", help="Position index"),
 ):
     """
     Add a section break to a form.
+
+    Use \\n in --description for line breaks.
     """
     from .api import FormsAPI
 
     try:
         api = FormsAPI()
-        api.add_section(form_id, title, description, position)
+        # Process description for newlines
+        processed_desc = _process_text(description)
+        api.add_section(form_id, title, processed_desc, position)
 
         console.print("[green]✓ Section added successfully![/green]")
 
